@@ -1,6 +1,5 @@
 """Tests for db.py — all run against an in-memory SQLite database."""
 
-import sqlite3
 import pytest
 from cowork_graph import db
 

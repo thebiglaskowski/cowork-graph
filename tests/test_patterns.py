@@ -1,6 +1,5 @@
 """Unit tests for cowork_graph.patterns — one test class per pattern."""
 
-import pytest
 from cowork_graph.patterns import (
     DECISION_ALL_FIELDS,
     DECISION_OPTIONAL_FIELDS,

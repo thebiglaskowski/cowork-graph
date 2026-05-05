@@ -1,11 +1,8 @@
 """Tests for config.py — uses tmp_path to avoid touching real ~/.config."""
 
-import os
 from pathlib import Path
 
-import pytest
 from cowork_graph.config import (
-    Config,
     _DEFAULT_COWORK_ROOT,
     _DEFAULT_DB_PATH,
     _DEFAULT_FAIL_THRESHOLD_PCT,

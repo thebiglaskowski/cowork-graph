@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 import frontmatter
@@ -11,14 +11,12 @@ import yaml
 
 from cowork_graph.patterns import (
     DECISION_ALL_FIELDS,
-    DECISION_OPTIONAL_FIELDS,
     DECISION_REQUIRED_FIELDS,
     ENTITY_PREFIXES,
     RE_DECISION_FIELD,
     RE_DECISION_HEADING,
     RE_MD_LINK,
     RE_RELATED_BLOCK,
-    TARGETS_SEPARATOR,
 )
 
 

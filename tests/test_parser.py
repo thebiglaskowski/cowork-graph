@@ -2,13 +2,8 @@
 
 from pathlib import Path
 
-import pytest
 from cowork_graph.parser import (
-    Decision,
-    Link,
-    Mention,
     ParseResult,
-    RelatedBlock,
     extract_links,
     extract_mentions,
     extract_related_blocks,

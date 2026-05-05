@@ -1,9 +1,7 @@
 """Tests for walker.py — uses tmp_path fixture trees."""
 
-import os
 from pathlib import Path
 
-import pytest
 from cowork_graph.walker import walk
 
 
