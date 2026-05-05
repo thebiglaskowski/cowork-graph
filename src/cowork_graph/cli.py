@@ -105,6 +105,7 @@ def _cmd_build(_args: list[str]) -> int:
 
         is_decision_log = abs_path.name == "decisions-log.md"
 
+        _, body_text, _, _ = parser.parse_frontmatter(text)
         result = parser.parse_doc(
             path=rel_path,
             text=text,
@@ -130,6 +131,12 @@ def _cmd_build(_args: list[str]) -> int:
                 parsed_at=result.parsed_at,
                 parse_status=result.parse_status,
                 parse_notes=result.parse_notes,
+            )
+            db.upsert_doc_fts(
+                conn,
+                path=result.path,
+                title=result.title,
+                body=body_text,
             )
 
             # Tags and TAGGED edges

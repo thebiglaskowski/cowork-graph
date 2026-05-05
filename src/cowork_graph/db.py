@@ -222,6 +222,20 @@ def upsert_format_drift(
     )
 
 
+def upsert_doc_fts(
+    conn: sqlite3.Connection,
+    *,
+    path: str,
+    title: str | None,
+    body: str,
+) -> None:
+    conn.execute("DELETE FROM doc_fts WHERE path = ?", (path,))
+    conn.execute(
+        "INSERT INTO doc_fts (path, title, body) VALUES (?, ?, ?)",
+        (path, title or "", body),
+    )
+
+
 def update_meta(conn: sqlite3.Connection, *, built_at: str, build_kind: str) -> None:
     conn.executemany(
         "INSERT OR REPLACE INTO schema_meta (key, value) VALUES (?, ?)",

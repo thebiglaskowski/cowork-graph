@@ -154,3 +154,15 @@ CREATE INDEX IF NOT EXISTS idx_vendor_ghost  ON vendor(is_ghost)  WHERE is_ghost
 -- Alias lookups
 CREATE INDEX IF NOT EXISTS idx_person_alias_alias ON person_alias(alias);
 CREATE INDEX IF NOT EXISTS idx_vendor_alias_alias ON vendor_alias(alias);
+
+-- ==========================================================
+-- Full-text search (Phase 3)
+-- ==========================================================
+
+-- Contentful FTS5 table so snippet() is available.
+-- path is UNINDEXED (stored, not tokenized); join to doc on path for metadata.
+CREATE VIRTUAL TABLE IF NOT EXISTS doc_fts USING fts5(
+  path  UNINDEXED,
+  title,
+  body
+);
