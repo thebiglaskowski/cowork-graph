@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cowork-graph"
+version = "0.1.0"
+description = "Local knowledge graph over the cowork markdown corpus"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Joe Laskowski" }]
+dependencies = [
+  "python-frontmatter>=1.0",
+]
+
+[project.scripts]
+cowork-graph = "cowork_graph.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "ruff>=0.4",
+]
+mcp = [
+  "fastmcp>=0.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cowork_graph"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
