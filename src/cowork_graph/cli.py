@@ -19,6 +19,8 @@ def main() -> int:
         return 0
     if args[0] == "build":
         return _cmd_build(args[1:])
+    if args[0] == "mcp":
+        return _cmd_mcp(args[1:])
     print(f"Unknown command: {args[0]}. Run 'cowork-graph help' for usage.", file=sys.stderr)
     return 1
 
@@ -28,14 +30,43 @@ def _print_help() -> None:
         "cowork-graph CLI\n"
         "\n"
         "Commands:\n"
-        "  build    Walk the cowork corpus and write the SQLite graph DB.\n"
-        "  help     Show this message.\n"
+        "  build              Walk the cowork corpus and write the SQLite graph DB.\n"
+        "  mcp serve          Start the MCP server over stdio.\n"
+        "  mcp install        Register with MCP clients (default: --all).\n"
+        "  help               Show this message.\n"
+        "\n"
+        "mcp install flags: --desktop  --code-wsl  --code-ps  --all\n"
         "\n"
         "Config: ~/.config/cowork-graph/config.toml (generated on first run)\n"
         "Env:    COWORK_GRAPH_DB_PATH overrides config.db_path\n"
         "\n"
         "See cowork/claude-environment/cowork-graph/plan.md for the schema and roadmap."
     )
+
+
+def _cmd_mcp(args: list[str]) -> int:
+    if not args or args[0] == "serve":
+        from cowork_graph.mcp_server import main as mcp_main
+        mcp_main()
+        return 0
+    if args[0] == "install":
+        return _cmd_mcp_install(args[1:])
+    print(f"Unknown mcp subcommand: {args[0]}. Use 'serve' or 'install'.", file=sys.stderr)
+    return 1
+
+
+def _cmd_mcp_install(args: list[str]) -> int:
+    from cowork_graph.install import install, print_results
+
+    flags = set(args)
+    use_all = "--all" in flags or not flags
+    results = install(
+        desktop=use_all or "--desktop" in flags,
+        code_wsl=use_all or "--code-wsl" in flags,
+        code_ps=use_all or "--code-ps" in flags,
+    )
+    print_results(results)
+    return 0
 
 
 def _cmd_build(_args: list[str]) -> int:
