@@ -79,6 +79,6 @@ cowork-graph mcp install             # Register with MCP clients
 - **Phase 3** (MCP server v0) — complete. Eight tools, FastMCP, `mcp serve` / `mcp install` CLI.
 - **Phase 4** (audit module) — complete. Ten drift checks, CLI subcommand, MCP tool, 48 tests.
 - **Phase 5** (sync hook) — complete. `cowork-graph update --since <ref>` for incremental builds; `scripts/install-hook.sh` installs the post-commit hook.
-- **Phase 6** (ghost-project fix) — complete. Post-walk pass flips `is_ghost=0` when `memory/projects/<slug>.md` exists.
+- **Phase 6** (parser cleanup Round 1) — complete. Four fixes: link-with-title regex, path normalization (`posixpath.normpath`), ABOUT_DECISION broadened to all decision fields, ghost-project resolution via hub-doc TAGGED-edge query. Baseline audit 2026-05-06: 195 total findings (from 170 on stale DB; corpus grew during session). ghost_projects: 8→4.
 
 Do not make schema changes without first reading `plan.md` from the cowork side.
