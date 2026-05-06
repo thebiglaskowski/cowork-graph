@@ -5,7 +5,7 @@ from __future__ import annotations
 import posixpath
 import re
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 import frontmatter
 import yaml
@@ -158,13 +158,12 @@ def parse_frontmatter(text: str) -> tuple[dict, str, str, str | None]:
 
 
 def extract_related_blocks(body: str, *, doc_path: str) -> list[RelatedBlock]:
-    doc_dir = PurePosixPath(doc_path).parent
     blocks = []
     for m in RE_RELATED_BLOCK.finditer(body):
         label = m.group("label")
         raw_targets = m.group("targets")
         link_targets = [
-            posixpath.normpath((doc_dir / lm.group("target").split("#")[0]).as_posix())
+            _resolve_link_target(doc_path, lm.group("target").split("#")[0])
             for lm in RE_MD_LINK.finditer(raw_targets)
         ]
         if link_targets:
@@ -174,7 +173,6 @@ def extract_related_blocks(body: str, *, doc_path: str) -> list[RelatedBlock]:
 
 def extract_links(body: str, *, doc_path: str, cowork_root: Path) -> list[Link]:
     links = []
-    doc_dir = PurePosixPath(doc_path).parent
     for m in RE_MD_LINK.finditer(body):
         text = m.group("text")
         raw = m.group("target").strip()
@@ -187,7 +185,7 @@ def extract_links(body: str, *, doc_path: str, cowork_root: Path) -> list[Link]:
             # Strip any trailing anchor from the target before resolving
             bare = raw.split("#")[0]
             try:
-                resolved_rel = posixpath.normpath((doc_dir / bare).as_posix())
+                resolved_rel = _resolve_link_target(doc_path, bare)
                 # Normalise away any .. components
                 abs_candidate = (cowork_root / resolved_rel).resolve()
                 if abs_candidate.is_relative_to(cowork_root) and abs_candidate.exists():
@@ -290,6 +288,16 @@ def extract_mentions(body: str, *, persons: dict[str, str]) -> list[Mention]:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _resolve_link_target(source_doc_path: str, link_target: str) -> str:
+    """Resolve link_target relative to source_doc_path and normalize the result.
+
+    Called from every edge-target construction site so normalization is consistent.
+    """
+    return posixpath.normpath(
+        posixpath.join(posixpath.dirname(source_doc_path), link_target)
+    )
 
 
 def _extract_title(body: str, path: str) -> str | None:

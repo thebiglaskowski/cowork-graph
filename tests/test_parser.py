@@ -66,6 +66,14 @@ class TestExtractRelatedBlocks:
     def test_no_blocks_returns_empty(self):
         assert extract_related_blocks("Just body text with [links](x.md).", doc_path="root.md") == []
 
+    def test_related_block_target_without_dotdot_unchanged(self):
+        # A same-directory target has no .. to collapse — must survive normpath intact.
+        blocks = extract_related_blocks(
+            "> **Siblings:** [b](sibling.md)\n",
+            doc_path="autoscriptstudio/hub.md",
+        )
+        assert blocks[0].targets[0] == "autoscriptstudio/sibling.md"
+
     def test_related_block_and_inline_link_normalize_identically(self):
         # A related-block target with .. must produce the same path as
         # extract_links on the identical .. link (the canonical normalization test).
