@@ -230,7 +230,7 @@ class TestDecisions:
 
 
 class TestAudit:
-    def test_returns_stub(self, graph_db):
+    def test_returns_ok(self, graph_db):
         result = audit(graph_db)
-        assert result["status"] == "not_implemented"
-        assert "Phase 4" in result["message"]
+        assert result["status"] == "ok"
+        assert result["total_findings"] >= 0

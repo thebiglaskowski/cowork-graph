@@ -211,7 +211,7 @@ class TestDecisions:
 
 
 class TestAudit:
-    def test_returns_stub(self, mcp_app):
+    def test_returns_ok(self, mcp_app):
         from fastmcp import Client
 
         async def check():
@@ -221,4 +221,6 @@ class TestAudit:
 
         data = _run(check())
         assert data is not None
-        assert data["status"] == "not_implemented"
+        assert data["status"] == "ok"
+        assert "total_findings" in data
+        assert "findings" in data

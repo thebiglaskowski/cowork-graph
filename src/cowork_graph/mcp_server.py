@@ -97,11 +97,13 @@ def decisions(
 
 
 @mcp.tool
-def audit() -> dict:
-    """Phase 4 stub."""
+def audit(write_report: bool = False) -> dict:
+    """Run all ten drift-detection checks. Optionally write a markdown report to the cowork audits dir."""
+    cfg = cfg_mod.load()
+    report_dir = cfg.cowork_root / "claude-environment/cowork-graph/audits" if write_report else None
     conn = _conn()
     try:
-        return queries.audit(conn)
+        return queries.audit(conn, write_report=write_report, report_dir=report_dir)
     finally:
         conn.close()
 

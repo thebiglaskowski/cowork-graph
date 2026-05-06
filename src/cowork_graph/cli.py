@@ -21,6 +21,8 @@ def main() -> int:
         return _cmd_build(args[1:])
     if args[0] == "mcp":
         return _cmd_mcp(args[1:])
+    if args[0] == "audit":
+        return _cmd_audit(args[1:])
     print(f"Unknown command: {args[0]}. Run 'cowork-graph help' for usage.", file=sys.stderr)
     return 1
 
@@ -31,6 +33,7 @@ def _print_help() -> None:
         "\n"
         "Commands:\n"
         "  build              Walk the cowork corpus and write the SQLite graph DB.\n"
+        "  audit [--write]    Run ten drift-detection checks; --write saves a report.\n"
         "  mcp serve          Start the MCP server over stdio.\n"
         "  mcp install        Register with MCP clients (default: --all).\n"
         "  help               Show this message.\n"
@@ -342,6 +345,30 @@ def _cmd_build(_args: list[str]) -> int:
             file=sys.stderr,
         )
         return 1
+    return 0
+
+
+def _cmd_audit(args: list[str]) -> int:
+    import json
+    from cowork_graph import audit as audit_mod
+
+    write = "--write" in args
+    cfg = cfg_mod.load()
+
+    if not cfg.db_path.exists():
+        print("Error: graph DB not found. Run 'cowork-graph build' first.", file=sys.stderr)
+        return 1
+
+    report_dir = cfg.cowork_root / "claude-environment/cowork-graph/audits" if write else None
+    conn = db.connect(cfg.db_path)
+    try:
+        result = audit_mod.run_audit(conn, write_report=write, report_dir=report_dir)
+    finally:
+        conn.close()
+
+    print(json.dumps({"total_findings": result["total_findings"], "summary": result["summary"]}, indent=2))
+    if result["report_written"]:
+        print(f"Report written: {result['report_written']}")
     return 0
 
 
