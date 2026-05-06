@@ -52,6 +52,10 @@ class Config:
     log_path: Path = field(default_factory=lambda: Path(_DEFAULT_LOG_PATH).expanduser())
     parser: ParserConfig = field(default_factory=ParserConfig)
 
+    @property
+    def suppressions_path(self) -> Path:
+        return self.cowork_root / "claude-environment/cowork-graph/audits/suppressions.md"
+
 
 def load(config_path: Path | None = None) -> Config:
     """Load config, generating the file with defaults if absent."""

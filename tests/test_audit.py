@@ -372,3 +372,67 @@ class TestFormatReport:
         result = run_audit(audit_db)
         report = format_report(result)
         assert "_No findings._" in report  # at least one check passes clean
+
+    def test_suppressed_field_empty_without_suppressions_path(self, audit_db):
+        result = run_audit(audit_db)
+        assert result["suppressed"] == {}
+
+
+# ---------------------------------------------------------------------------
+# Suppressions integration
+# ---------------------------------------------------------------------------
+
+
+class TestSuppressionIntegration:
+    def test_suppressed_finding_absent_from_findings(self, audit_db, tmp_path):
+        # broken-links-doc.md → nonexistent.md is a known finding in the fixture corpus
+        sup_file = tmp_path / "suppressions.md"
+        sup_file.write_text(
+            "---\n"
+            "suppressions:\n"
+            "  - rule: broken_links\n"
+            "    key: broken-links-doc.md::nonexistent.md\n"
+            "    reason: Test suppression\n"
+            "    added: 2026-05-06\n"
+            "---\n\n# Audit Suppressions\n",
+            encoding="utf-8",
+        )
+        result = run_audit(audit_db, suppressions_path=sup_file)
+        keys = [
+            f'{f["source_doc"]}::{f["link_target"]}'
+            for f in result["findings"]["broken_links"]
+        ]
+        assert "broken-links-doc.md::nonexistent.md" not in keys
+
+    def test_suppressed_count_reflects_filtered_finding(self, audit_db, tmp_path):
+        sup_file = tmp_path / "suppressions.md"
+        sup_file.write_text(
+            "---\n"
+            "suppressions:\n"
+            "  - rule: broken_links\n"
+            "    key: broken-links-doc.md::nonexistent.md\n"
+            "    reason: Test suppression\n"
+            "    added: 2026-05-06\n"
+            "---\n\n# Audit Suppressions\n",
+            encoding="utf-8",
+        )
+        without = run_audit(audit_db)
+        with_sup = run_audit(audit_db, suppressions_path=sup_file)
+        assert with_sup["suppressed"].get("broken_links", 0) >= 1
+        assert with_sup["total_findings"] == without["total_findings"] - 1
+
+    def test_total_findings_reduced_by_suppression(self, audit_db, tmp_path):
+        sup_file = tmp_path / "suppressions.md"
+        sup_file.write_text(
+            "---\n"
+            "suppressions:\n"
+            "  - rule: broken_links\n"
+            "    key: broken-links-doc.md::nonexistent.md\n"
+            "    reason: Test suppression\n"
+            "    added: 2026-05-06\n"
+            "---\n\n# Audit Suppressions\n",
+            encoding="utf-8",
+        )
+        baseline = run_audit(audit_db)["total_findings"]
+        filtered = run_audit(audit_db, suppressions_path=sup_file)["total_findings"]
+        assert filtered < baseline

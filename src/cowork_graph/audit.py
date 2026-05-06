@@ -202,15 +202,20 @@ def run_audit(
     stale_days: int = 90,
     ghost_min_mentions: int = 2,
     tag_max_count: int = 2,
+    suppressions_path: Path | None = None,
 ) -> dict:
     """Run all ten checks, return structured findings dict."""
+    from cowork_graph.suppressions import filter_findings, load_suppressions
+
     run_at = datetime.now(timezone.utc).isoformat()
     row = conn.execute(
         "SELECT value FROM schema_meta WHERE key='built_at'"
     ).fetchone()
     built_at = row["value"] if row else None
 
-    findings: dict[str, list[dict]] = {
+    suppressions = load_suppressions(suppressions_path) if suppressions_path is not None else set()
+
+    raw: dict[str, list[dict]] = {
         "ghost_projects": ghost_projects(conn),
         "ghost_people": ghost_people(conn, min_mentions=ghost_min_mentions),
         "broken_links": broken_links(conn),
@@ -222,6 +227,15 @@ def run_audit(
         "tag_drift": tag_drift(conn, max_count=tag_max_count),
         "decisions_format_drift": decisions_format_drift(conn),
     }
+
+    findings: dict[str, list[dict]] = {}
+    suppressed_counts: dict[str, int] = {}
+    for rule, items in raw.items():
+        filtered, count = filter_findings(rule, items, suppressions)
+        findings[rule] = filtered
+        if count > 0:
+            suppressed_counts[rule] = count
+
     summary = {k: len(v) for k, v in findings.items()}
 
     result: dict = {
@@ -229,6 +243,7 @@ def run_audit(
         "run_at": run_at,
         "built_at": built_at,
         "total_findings": sum(summary.values()),
+        "suppressed": suppressed_counts,
         "summary": summary,
         "findings": findings,
         "report_written": None,

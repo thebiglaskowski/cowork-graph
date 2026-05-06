@@ -244,11 +244,21 @@ def _cmd_audit(args: list[str]) -> int:
     report_dir = cfg.cowork_root / "claude-environment/cowork-graph/audits" if write else None
     conn = db.connect(cfg.db_path)
     try:
-        result = audit_mod.run_audit(conn, write_report=write, report_dir=report_dir)
+        result = audit_mod.run_audit(
+            conn,
+            write_report=write,
+            report_dir=report_dir,
+            suppressions_path=cfg.suppressions_path,
+        )
     finally:
         conn.close()
 
-    print(json.dumps({"total_findings": result["total_findings"], "summary": result["summary"]}, indent=2))
+    output: dict = {
+        "total_findings": result["total_findings"],
+        "suppressed": result["suppressed"],
+        "summary": result["summary"],
+    }
+    print(json.dumps(output, indent=2))
     if result["report_written"]:
         print(f"Report written: {result['report_written']}")
     return 0

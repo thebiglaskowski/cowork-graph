@@ -410,10 +410,21 @@ def decisions(
     return [_decision_entry(conn, r) for r in rows]
 
 
-def audit(conn: sqlite3.Connection, *, write_report: bool = False, report_dir=None) -> dict:
+def audit(
+    conn: sqlite3.Connection,
+    *,
+    write_report: bool = False,
+    report_dir=None,
+    suppressions_path=None,
+) -> dict:
     """Run all ten drift-detection checks and return structured findings."""
     from cowork_graph import audit as audit_mod
-    return audit_mod.run_audit(conn, write_report=write_report, report_dir=report_dir)
+    return audit_mod.run_audit(
+        conn,
+        write_report=write_report,
+        report_dir=report_dir,
+        suppressions_path=suppressions_path,
+    )
 
 
 # ---------------------------------------------------------------------------

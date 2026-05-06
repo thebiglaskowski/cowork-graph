@@ -103,7 +103,12 @@ def audit(write_report: bool = False) -> dict:
     report_dir = cfg.cowork_root / "claude-environment/cowork-graph/audits" if write_report else None
     conn = _conn()
     try:
-        return queries.audit(conn, write_report=write_report, report_dir=report_dir)
+        return queries.audit(
+            conn,
+            write_report=write_report,
+            report_dir=report_dir,
+            suppressions_path=cfg.suppressions_path,
+        )
     finally:
         conn.close()
 
