@@ -35,18 +35,21 @@ def _cc_wsl_entry() -> dict:
 
 def _desktop_entry() -> dict:
     # Desktop runs on Windows — invokes WSL. No 'type' field (Claude Desktop rejects it).
+    # bash -lc is required: wsl -e runs execvpe() directly (no login shell, no .profile),
+    # so ~/.local/bin (where uv lives) is not on PATH without the -l flag.
     return {
         "command": "wsl",
-        "args": ["-e", "uv", "run", "--directory", _WSL_REPO, "cowork-graph", "mcp", "serve"],
+        "args": ["-e", "bash", "-lc", f"uv run --directory {_WSL_REPO} cowork-graph mcp serve"],
         "env": {},
     }
 
 
 def _cc_ps_entry() -> dict:
+    # Same bash -lc requirement as desktop entry (cross-context WSL invocation).
     return {
         "type": "stdio",
         "command": "wsl",
-        "args": ["-e", "uv", "run", "--directory", _WSL_REPO, "cowork-graph", "mcp", "serve"],
+        "args": ["-e", "bash", "-lc", f"uv run --directory {_WSL_REPO} cowork-graph mcp serve"],
         "env": {},
     }
 

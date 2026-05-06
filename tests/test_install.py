@@ -41,7 +41,13 @@ class TestEntryShapes:
         entry = _desktop_entry()
         assert entry["command"] == "wsl"
         assert "-e" in entry["args"]
-        assert "uv" in entry["args"]
+
+    def test_desktop_entry_uses_bash_login_shell(self):
+        # wsl -e uv fails (execvpe, no login shell, ~/.local/bin not on PATH)
+        entry = _desktop_entry()
+        assert "bash" in entry["args"]
+        assert "-lc" in entry["args"]
+        assert "uv" not in entry["args"]
 
     def test_cc_ps_entry_has_type_stdio(self):
         entry = _cc_ps_entry()
@@ -50,6 +56,13 @@ class TestEntryShapes:
     def test_cc_ps_entry_uses_wsl_command(self):
         entry = _cc_ps_entry()
         assert entry["command"] == "wsl"
+
+    def test_cc_ps_entry_uses_bash_login_shell(self):
+        # Same cross-context PATH issue as desktop
+        entry = _cc_ps_entry()
+        assert "bash" in entry["args"]
+        assert "-lc" in entry["args"]
+        assert "uv" not in entry["args"]
 
 
 class TestInstallTo:
