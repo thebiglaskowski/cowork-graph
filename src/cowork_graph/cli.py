@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import posixpath
 import sys
 import time
 from datetime import datetime, timezone
@@ -325,7 +326,7 @@ def _write_doc_to_db(
         for raw_target in block.targets:
             bare = raw_target.split("#")[0]
             doc_dir = PurePosixPath(rel_path).parent
-            resolved_rel = (doc_dir / bare).as_posix()
+            resolved_rel = posixpath.normpath((doc_dir / bare).as_posix())
             db.upsert_edge(
                 conn,
                 source_type="doc", source_id=rel_path,

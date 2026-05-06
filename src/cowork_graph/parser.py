@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import posixpath
 import re
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -181,7 +182,7 @@ def extract_links(body: str, *, doc_path: str, cowork_root: Path) -> list[Link]:
             # Strip any trailing anchor from the target before resolving
             bare = raw.split("#")[0]
             try:
-                resolved_rel = (doc_dir / bare).as_posix()
+                resolved_rel = posixpath.normpath((doc_dir / bare).as_posix())
                 # Normalise away any .. components
                 abs_candidate = (cowork_root / resolved_rel).resolve()
                 if abs_candidate.is_relative_to(cowork_root) and abs_candidate.exists():

@@ -104,6 +104,30 @@ class TestExtractLinks:
         links = extract_links(body, doc_path=doc_path, cowork_root=self._root())
         assert links[0].is_broken
 
+    def test_dotdot_resolved_link_normalised(self):
+        # [link](../foo.md) from dir/source.md should resolve to foo.md, not dir/../foo.md
+        doc_path = "autoscriptstudio/autoscript-hub.md"
+        body = "[personal hub](../personal/personal-hub.md)"
+        links = extract_links(body, doc_path=doc_path, cowork_root=self._root())
+        assert links[0].resolved == "personal/personal-hub.md"
+        assert ".." not in (links[0].resolved or "")
+
+    def test_sub_dotdot_normalised(self):
+        # sub/../sibling.md resolved against dir/source.md → dir/sibling.md
+        doc_path = "autoscriptstudio/autoscript-hub.md"
+        body = "[hub](sub/../autoscript-hub.md)"
+        links = extract_links(body, doc_path=doc_path, cowork_root=self._root())
+        assert links[0].resolved == "autoscriptstudio/autoscript-hub.md"
+        assert ".." not in (links[0].resolved or "")
+
+    def test_dotslash_normalised(self):
+        # ./local.md from dir/source.md → dir/local.md (no leading ./)
+        doc_path = "autoscriptstudio/autoscript-hub.md"
+        body = "[hub](./autoscript-hub.md)"
+        links = extract_links(body, doc_path=doc_path, cowork_root=self._root())
+        assert links[0].resolved == "autoscriptstudio/autoscript-hub.md"
+        assert links[0].resolved is not None and not links[0].resolved.startswith("./")
+
 
 class TestExtractMentions:
     def test_full_name_matched(self):
