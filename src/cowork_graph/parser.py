@@ -57,6 +57,7 @@ class Decision:
     parse_status: str          # 'ok' | 'format_drift'
     format_drift_notes: str | None
     source_links: list[Link]   # links from the Source / context field
+    about_links: list[Link]    # deduplicated resolved links from all fields (for ABOUT_DECISION edges)
 
 
 @dataclass
@@ -235,6 +236,16 @@ def parse_decision_log(text: str, *, log_doc: str, cowork_root: Path) -> list[De
         source_context_text = fields.get("Source / context", "")
         source_links = extract_links(source_context_text, doc_path=log_doc, cowork_root=cowork_root)
 
+        # Collect links from all fields combined, deduplicated by resolved path.
+        all_field_text = "\n".join(v for v in fields.values() if v)
+        all_links_raw = extract_links(all_field_text, doc_path=log_doc, cowork_root=cowork_root)
+        seen_targets: set[str] = set()
+        about_links: list[Link] = []
+        for lk in all_links_raw:
+            if not lk.is_broken and lk.resolved and lk.resolved not in seen_targets:
+                seen_targets.add(lk.resolved)
+                about_links.append(lk)
+
         decisions.append(Decision(
             id=entry_id,
             date=date,
@@ -249,6 +260,7 @@ def parse_decision_log(text: str, *, log_doc: str, cowork_root: Path) -> list[De
             parse_status=parse_status,
             format_drift_notes=drift_notes,
             source_links=source_links,
+            about_links=about_links,
         ))
     return decisions
 

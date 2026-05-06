@@ -391,14 +391,13 @@ def _write_doc_to_db(
                     detected_at=parsed_at,
                     notes=decision.format_drift_notes or "",
                 )
-            for link in decision.source_links:
-                if not link.is_broken and link.resolved:
-                    db.upsert_edge(
-                        conn,
-                        source_type="decision", source_id=decision.id,
-                        edge_type="ABOUT_DECISION",
-                        target_type="doc", target_id=link.resolved,
-                    )
+            for link in decision.about_links:
+                db.upsert_edge(
+                    conn,
+                    source_type="decision", source_id=decision.id,
+                    edge_type="ABOUT_DECISION",
+                    target_type="doc", target_id=link.resolved,
+                )
 
     return n_broken
 

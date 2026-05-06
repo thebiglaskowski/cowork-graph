@@ -200,6 +200,60 @@ class TestParseDecisionLog:
         ok = next(d for d in decisions if d.parse_status == "ok")
         assert len(ok.source_links) >= 1
 
+    def test_about_links_from_source_context_field(self):
+        # Links in Source / context appear in about_links
+        text = (
+            "### 2026-05-05 — Test\n\n"
+            "**Decision:** Some decision.\n"
+            "**Why:** Some why.\n"
+            "**Alternatives considered:** None.\n"
+            "**Source / context:** See [hub](../autoscriptstudio/autoscript-hub.md).\n"
+        )
+        decisions = parse_decision_log(text, log_doc="memory/decisions-log.md", cowork_root=CORPUS)
+        assert len(decisions) == 1
+        resolved = [lk.resolved for lk in decisions[0].about_links]
+        assert "autoscriptstudio/autoscript-hub.md" in resolved
+
+    def test_about_links_from_all_fields(self):
+        # Links in Decision, Why, and Source / context all end up in about_links
+        text = (
+            "### 2026-05-05 — Multi-field\n\n"
+            "**Decision:** Use [hub](../autoscriptstudio/autoscript-hub.md).\n"
+            "**Why:** Because [personal](../personal/personal-hub.md).\n"
+            "**Alternatives considered:** None.\n"
+            "**Source / context:** See [hub](../autoscriptstudio/autoscript-hub.md) again.\n"
+        )
+        decisions = parse_decision_log(text, log_doc="memory/decisions-log.md", cowork_root=CORPUS)
+        resolved = [lk.resolved for lk in decisions[0].about_links]
+        # Both unique targets present
+        assert "autoscriptstudio/autoscript-hub.md" in resolved
+        assert "personal/personal-hub.md" in resolved
+        # No duplicates — autoscript-hub.md appears twice in text but once in about_links
+        assert resolved.count("autoscriptstudio/autoscript-hub.md") == 1
+
+    def test_about_links_no_links(self):
+        text = (
+            "### 2026-05-05 — No links\n\n"
+            "**Decision:** Plain text, no links.\n"
+            "**Why:** Also plain.\n"
+            "**Alternatives considered:** None.\n"
+            "**Source / context:** Nothing.\n"
+        )
+        decisions = parse_decision_log(text, log_doc="memory/decisions-log.md", cowork_root=CORPUS)
+        assert decisions[0].about_links == []
+
+    def test_about_links_excludes_broken(self):
+        # Broken link targets not included in about_links
+        text = (
+            "### 2026-05-05 — Broken\n\n"
+            "**Decision:** See [missing](nonexistent.md).\n"
+            "**Why:** Whatever.\n"
+            "**Alternatives considered:** None.\n"
+            "**Source / context:** Nothing.\n"
+        )
+        decisions = parse_decision_log(text, log_doc="memory/decisions-log.md", cowork_root=CORPUS)
+        assert decisions[0].about_links == []
+
 
 class TestParseDoc:
     def _parse(self, rel_path: str, persons: dict | None = None) -> ParseResult:
