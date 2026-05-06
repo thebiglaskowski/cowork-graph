@@ -293,10 +293,16 @@ class TestUpdateMeta:
 
 
 class TestResolveGhostProjects:
-    def _insert_doc(self, conn, path):
+    def _insert_hub_doc(self, conn, path, slug):
+        """Insert a hub doc with doc_type='hub' and a TAGGED edge for the project slug."""
         conn.execute(
-            "INSERT INTO doc (path, parsed_at, parse_status) VALUES (?, ?, ?)",
+            "INSERT INTO doc (path, doc_type, parsed_at, parse_status) VALUES (?, 'hub', ?, ?)",
             (path, "2026-05-05T00:00:00", "ok"),
+        )
+        conn.execute(
+            "INSERT INTO edge (source_type, source_id, edge_type, target_type, target_id)"
+            " VALUES ('doc', ?, 'TAGGED', 'tag', ?)",
+            (path, f"project/{slug}"),
         )
 
     def _insert_ghost(self, conn, slug):
@@ -307,7 +313,7 @@ class TestResolveGhostProjects:
 
     def test_flips_project_when_hub_doc_exists(self, conn):
         conn.execute("BEGIN")
-        self._insert_doc(conn, "memory/projects/my-project.md")
+        self._insert_hub_doc(conn, "memory/projects/my-project.md", "my-project")
         self._insert_ghost(conn, "my-project")
         resolved = db.resolve_ghost_projects(conn)
         conn.execute("COMMIT")
@@ -330,7 +336,7 @@ class TestResolveGhostProjects:
 
     def test_resolves_only_matching_slugs(self, conn):
         conn.execute("BEGIN")
-        self._insert_doc(conn, "memory/projects/has-hub.md")
+        self._insert_hub_doc(conn, "memory/projects/has-hub.md", "has-hub")
         self._insert_ghost(conn, "has-hub")
         self._insert_ghost(conn, "no-hub")
         resolved = db.resolve_ghost_projects(conn)
@@ -345,6 +351,48 @@ class TestResolveGhostProjects:
         resolved = db.resolve_ghost_projects(conn)
         conn.execute("COMMIT")
         assert resolved == 0
+
+    def test_non_hub_doc_does_not_resolve_ghost(self, conn):
+        # A doc with the right tag but doc_type != 'hub' must not flip the project
+        conn.execute("BEGIN")
+        conn.execute(
+            "INSERT INTO doc (path, doc_type, parsed_at, parse_status) VALUES (?, 'reference', ?, ?)",
+            ("autoscriptstudio/some-ref.md", "2026-05-05T00:00:00", "ok"),
+        )
+        conn.execute(
+            "INSERT INTO edge (source_type, source_id, edge_type, target_type, target_id)"
+            " VALUES ('doc', 'autoscriptstudio/some-ref.md', 'TAGGED', 'tag', 'project/my-proj')",
+        )
+        self._insert_ghost(conn, "my-proj")
+        resolved = db.resolve_ghost_projects(conn)
+        conn.execute("COMMIT")
+        assert resolved == 0
+
+    def test_multiple_hub_docs_prefers_memory_projects_path(self, conn):
+        # With two hub docs, memory/projects/<slug>.md wins over a lexicographically smaller path
+        conn.execute("BEGIN")
+        self._insert_hub_doc(conn, "autoscriptstudio/alt-hub.md", "my-proj")
+        self._insert_hub_doc(conn, "memory/projects/my-proj.md", "my-proj")
+        self._insert_ghost(conn, "my-proj")
+        resolved = db.resolve_ghost_projects(conn)
+        conn.execute("COMMIT")
+
+        assert resolved == 1
+        row = conn.execute("SELECT hub_doc FROM project WHERE slug='my-proj'").fetchone()
+        assert row["hub_doc"] == "memory/projects/my-proj.md"
+
+    def test_multiple_hub_docs_no_memory_path_uses_lexicographic(self, conn):
+        # Without memory/projects/<slug>.md, picks lexicographically smallest path
+        conn.execute("BEGIN")
+        self._insert_hub_doc(conn, "personal/z-hub.md", "my-proj")
+        self._insert_hub_doc(conn, "autoscriptstudio/a-hub.md", "my-proj")
+        self._insert_ghost(conn, "my-proj")
+        resolved = db.resolve_ghost_projects(conn)
+        conn.execute("COMMIT")
+
+        assert resolved == 1
+        row = conn.execute("SELECT hub_doc FROM project WHERE slug='my-proj'").fetchone()
+        assert row["hub_doc"] == "autoscriptstudio/a-hub.md"
 
 
 class TestDeleteDoc:

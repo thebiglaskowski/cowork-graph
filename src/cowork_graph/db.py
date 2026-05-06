@@ -126,7 +126,11 @@ def upsert_project(
 
 
 def resolve_ghost_projects(conn: sqlite3.Connection) -> int:
-    """Flip is_ghost=0 and set hub_doc for projects whose memory/projects/<slug>.md exists.
+    """Flip is_ghost=0 and set hub_doc for ghost projects that have a hub doc.
+
+    Finds hub docs by querying for docs tagged with 'project/<slug>' whose
+    doc_type is 'hub'. Tiebreaker: prefers memory/projects/<slug>.md, then
+    lexicographically smallest path.
 
     Returns the number of projects resolved.
     """
@@ -134,13 +138,26 @@ def resolve_ghost_projects(conn: sqlite3.Connection) -> int:
     resolved = 0
     for row in rows:
         slug = row["slug"]
-        hub_path = f"memory/projects/{slug}.md"
-        if conn.execute("SELECT 1 FROM doc WHERE path=?", (hub_path,)).fetchone():
-            conn.execute(
-                "UPDATE project SET is_ghost=0, hub_doc=? WHERE slug=?",
-                (hub_path, slug),
-            )
-            resolved += 1
+        candidates = [
+            r["path"]
+            for r in conn.execute(
+                "SELECT d.path FROM doc d"
+                " JOIN edge e ON e.source_id = d.path"
+                " WHERE e.edge_type = 'TAGGED'"
+                "   AND e.target_id = ?"
+                "   AND d.doc_type = 'hub'",
+                (f"project/{slug}",),
+            ).fetchall()
+        ]
+        if not candidates:
+            continue
+        preferred = f"memory/projects/{slug}.md"
+        hub_path = preferred if preferred in candidates else sorted(candidates)[0]
+        conn.execute(
+            "UPDATE project SET is_ghost=0, hub_doc=? WHERE slug=?",
+            (hub_path, slug),
+        )
+        resolved += 1
     return resolved
 
 
