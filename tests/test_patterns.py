@@ -133,6 +133,26 @@ class TestMdLink:
         assert m is not None
         assert m.group("target") == "path/doc.md#section"
 
+    def test_link_with_double_quoted_title_strips_title(self):
+        m = RE_MD_LINK.search('[img](screenshot.webp "Optional title")')
+        assert m is not None
+        assert m.group("target") == "screenshot.webp"
+
+    def test_link_with_single_quoted_title_strips_title(self):
+        m = RE_MD_LINK.search("[img](screenshot.webp 'Optional title')")
+        assert m is not None
+        assert m.group("target") == "screenshot.webp"
+
+    def test_link_with_title_containing_spaces(self):
+        m = RE_MD_LINK.search('[img](path/to/img.png "A title with spaces")')
+        assert m is not None
+        assert m.group("target") == "path/to/img.png"
+
+    def test_bare_link_unchanged(self):
+        m = RE_MD_LINK.search("[text](plain/link.md)")
+        assert m is not None
+        assert m.group("target") == "plain/link.md"
+
 
 class TestRelatedBlock:
     def test_related_hubs(self):
