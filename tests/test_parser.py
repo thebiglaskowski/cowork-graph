@@ -47,23 +47,39 @@ class TestParseFrontmatter:
 class TestExtractRelatedBlocks:
     def test_related_hubs_extracted(self):
         body = "> **Related hubs:** [hub](../personal/hub.md)\nBody text."
-        blocks = extract_related_blocks(body)
+        blocks = extract_related_blocks(body, doc_path="autoscriptstudio/hub.md")
         assert len(blocks) == 1
         assert "Related hub" in blocks[0].label
-        assert "../personal/hub.md" in blocks[0].targets
+        # target is normalized: autoscriptstudio/../personal/hub.md → personal/hub.md
+        assert blocks[0].targets[0] == "personal/hub.md"
 
     def test_downstream_extracted(self):
         body = "> **Downstream:** [dep](dep.md)"
-        blocks = extract_related_blocks(body)
+        blocks = extract_related_blocks(body, doc_path="autoscriptstudio/hub.md")
         assert blocks[0].label == "Downstream"
 
     def test_multiple_targets_on_one_line(self):
         body = "> **Related hubs:** [a](a.md) · [b](b.md)"
-        blocks = extract_related_blocks(body)
+        blocks = extract_related_blocks(body, doc_path="autoscriptstudio/hub.md")
         assert len(blocks[0].targets) == 2
 
     def test_no_blocks_returns_empty(self):
-        assert extract_related_blocks("Just body text with [links](x.md).") == []
+        assert extract_related_blocks("Just body text with [links](x.md).", doc_path="root.md") == []
+
+    def test_related_block_and_inline_link_normalize_identically(self):
+        # A related-block target with .. must produce the same path as
+        # extract_links on the identical .. link (the canonical normalization test).
+        doc_path = "autoscriptstudio/autoscript-hub.md"
+        target = "../personal/personal-hub.md"
+        blocks = extract_related_blocks(
+            f"> **Siblings:** [x]({target})\n", doc_path=doc_path
+        )
+        related_normalized = blocks[0].targets[0]
+        # extract_links resolves via filesystem; the file exists in CORPUS
+        links = extract_links(f"[x]({target})", doc_path=doc_path, cowork_root=CORPUS)
+        inline_resolved = links[0].resolved
+        assert related_normalized == inline_resolved
+        assert ".." not in related_normalized
 
 
 class TestExtractLinks:

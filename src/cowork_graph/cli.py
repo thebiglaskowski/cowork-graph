@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import posixpath
 import sys
 import time
 from datetime import datetime, timezone
-from pathlib import PurePosixPath
 
 from cowork_graph import config as cfg_mod
 from cowork_graph import db, parser
@@ -323,15 +321,13 @@ def _write_doc_to_db(
 
     for block in result.related_blocks:
         edge_type, edge_subtype = _LABEL_TO_EDGE.get(block.label, ("RELATED_TO", ""))
-        for raw_target in block.targets:
-            bare = raw_target.split("#")[0]
-            doc_dir = PurePosixPath(rel_path).parent
-            resolved_rel = posixpath.normpath((doc_dir / bare).as_posix())
+        for target in block.targets:
+            # targets are root-relative normalized paths (normpath applied in parser.py)
             db.upsert_edge(
                 conn,
                 source_type="doc", source_id=rel_path,
                 edge_type=edge_type,
-                target_type="doc", target_id=resolved_rel,
+                target_type="doc", target_id=target,
                 edge_subtype=edge_subtype,
             )
 
@@ -454,6 +450,13 @@ def _cmd_update(args: list[str]) -> int:
 
 
 def _cmd_reindex(args: list[str]) -> int:
+    # Delete the DB so stale edges from previous index runs are eliminated.
+    # INSERT OR REPLACE uses a PK that includes target_id, so normalized and
+    # unnormalized forms of the same edge have different PKs and both survive
+    # an additive rebuild. Wiping and rebuilding from scratch avoids this.
+    cfg = cfg_mod.load()
+    if cfg.db_path.exists():
+        cfg.db_path.unlink()
     return _cmd_build([])
 
 

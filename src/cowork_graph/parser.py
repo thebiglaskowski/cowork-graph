@@ -29,7 +29,7 @@ from cowork_graph.patterns import (
 @dataclass
 class RelatedBlock:
     label: str       # 'Related hubs', 'Siblings', 'Downstream', 'Upstream'
-    targets: list[str]  # raw target strings from RE_MD_LINK
+    targets: list[str]  # root-relative normalized paths (posixpath.normpath applied)
 
 
 @dataclass
@@ -118,7 +118,7 @@ def parse_doc(
 
     title = _extract_title(body, path)
     word_count = len(body.split())
-    related_blocks = extract_related_blocks(body)
+    related_blocks = extract_related_blocks(body, doc_path=path)
     # Strip related-block lines before link extraction
     clean_body = RE_RELATED_BLOCK.sub("", body)
     links = extract_links(clean_body, doc_path=path, cowork_root=cowork_root)
@@ -157,12 +157,16 @@ def parse_frontmatter(text: str) -> tuple[dict, str, str, str | None]:
         return {}, body, "partial", str(exc)
 
 
-def extract_related_blocks(body: str) -> list[RelatedBlock]:
+def extract_related_blocks(body: str, *, doc_path: str) -> list[RelatedBlock]:
+    doc_dir = PurePosixPath(doc_path).parent
     blocks = []
     for m in RE_RELATED_BLOCK.finditer(body):
         label = m.group("label")
         raw_targets = m.group("targets")
-        link_targets = [lm.group("target") for lm in RE_MD_LINK.finditer(raw_targets)]
+        link_targets = [
+            posixpath.normpath((doc_dir / lm.group("target").split("#")[0]).as_posix())
+            for lm in RE_MD_LINK.finditer(raw_targets)
+        ]
         if link_targets:
             blocks.append(RelatedBlock(label=label, targets=link_targets))
     return blocks
