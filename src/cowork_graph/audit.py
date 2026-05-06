@@ -281,6 +281,13 @@ def format_report(result: dict) -> str:
     lines: list[str] = []
     date_str = result["run_at"][:10]
     lines += [
+        "---",
+        "tags:",
+        "  - status/reference",
+        "  - type/audit",
+        "  - project/cowork-graph",
+        "---",
+        "",
         f"# Cowork Graph Audit — {date_str}",
         "",
         f"**DB built at:** {result['built_at'] or 'unknown'}",
