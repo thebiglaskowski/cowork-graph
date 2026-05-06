@@ -22,7 +22,7 @@ def search_docs(
     status: str | None = None,
     scope: str | None = None,
 ) -> list[queries.DocHit]:
-    """Full-text search over the cowork corpus."""
+    """Full-text search across the cowork corpus, with optional filters for tags, status, and entity scope. Use when looking for a doc by topic or partial content, surveying coverage of a subject across the corpus, or locating a specific doc whose path you don't remember. Returns paths, titles, and snippets."""
     conn = _conn()
     try:
         return queries.search_docs(conn, query, tags=tags, status=status, scope=scope)
@@ -32,7 +32,7 @@ def search_docs(
 
 @mcp.tool
 def get_doc(path: str) -> queries.DocDetail | None:
-    """Doc metadata and edge neighborhood."""
+    """Get full structured info for one doc: frontmatter, neighbors via LINKS_TO/RELATED_TO/BLOCKS edges in both directions, last-modified time. Use when zooming into a specific doc to understand its position in the graph — what links to it, what it links out to — before editing it or making decisions that touch it."""
     conn = _conn()
     try:
         return queries.get_doc(conn, path)
@@ -45,7 +45,7 @@ def list_active(
     scope: str | None = None,
     project: str | None = None,
 ) -> list[queries.DocSummary]:
-    """All active docs, optionally filtered by entity scope or project slug."""
+    """List every doc with status/active across the corpus, optionally filtered by entity scope (autoscriptstudio, personal, nexus-legacy-holdings) or project slug. Use when surveying current work, generating a status summary, or planning a work session by seeing what's in flight."""
     conn = _conn()
     try:
         return queries.list_active(conn, scope=scope, project=project)
@@ -55,7 +55,7 @@ def list_active(
 
 @mcp.tool
 def list_blocked() -> list[queries.BlockedDoc]:
-    """All blocked docs with upstream blockers resolved via BLOCKS edges."""
+    """List every doc with status/blocked, with the upstream blocker resolved via BLOCKS edges. Use when investigating what's stuck and why, generating a blockers list, or before making decisions that depend on currently-blocked work clearing."""
     conn = _conn()
     try:
         return queries.list_blocked(conn)
@@ -65,7 +65,7 @@ def list_blocked() -> list[queries.BlockedDoc]:
 
 @mcp.tool
 def project_state(slug: str) -> queries.ProjectState | None:
-    """Full subgraph for a project: hub, members, status mix, blockers, decisions."""
+    """Full subgraph for one project: hub doc, member docs, status mix (active/blocked/done counts), blockers, recent activity, related decisions. Use when zooming into a single project to understand its current shape, surveying what's left to do, or generating a project status report."""
     conn = _conn()
     try:
         return queries.project_state(conn, slug)
@@ -75,7 +75,7 @@ def project_state(slug: str) -> queries.ProjectState | None:
 
 @mcp.tool
 def who(name: str) -> queries.PersonProfile | None:
-    """Person node and all docs mentioning them (v1: full canonical name only)."""
+    """Person profile: canonical info plus every doc that mentions them. Use when looking up someone's role and context, finding all places they're referenced, or pulling background on a person before a meeting or message."""
     conn = _conn()
     try:
         return queries.who(conn, name)
@@ -88,7 +88,7 @@ def decisions(
     topic: str | None = None,
     since: str | None = None,
 ) -> list[queries.DecisionEntry]:
-    """Recent decisions, optionally filtered by topic keyword or date (YYYY-MM-DD)."""
+    """Recent decisions from memory/decisions-log.md, optionally topic-filtered or since a date, with SUPERSEDES and ABOUT_DECISION edges resolved. Use when needing decision history, looking up the rationale behind a past choice, surveying strategic context, or checking whether something is governed by an existing decision."""
     conn = _conn()
     try:
         return queries.decisions(conn, topic=topic, since=since)
@@ -98,7 +98,7 @@ def decisions(
 
 @mcp.tool
 def audit(write_report: bool = False) -> dict:
-    """Run all ten drift-detection checks. Optionally write a markdown report to the cowork audits dir."""
+    """Run all ten drift-detection checks against the corpus, optionally writing a markdown report to the audits folder. Use after bulk corpus edits to verify health, when investigating whether something has drifted from convention, before a release or major reorganization, or as part of weekly maintenance. Findings include broken links, ghost projects, orphan docs, format drift, decision drift, tag drift, and more."""
     cfg = cfg_mod.load()
     report_dir = cfg.cowork_root / "claude-environment/cowork-graph/audits" if write_report else None
     conn = _conn()
