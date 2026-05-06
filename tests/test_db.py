@@ -345,3 +345,175 @@ class TestResolveGhostProjects:
         resolved = db.resolve_ghost_projects(conn)
         conn.execute("COMMIT")
         assert resolved == 0
+
+
+class TestDeleteDoc:
+    def _insert_doc(self, conn, path="autoscriptstudio/hub.md"):
+        conn.execute(
+            "INSERT INTO doc (path, parsed_at, parse_status) VALUES (?, ?, ?)",
+            (path, "2026-05-05T00:00:00", "ok"),
+        )
+
+    def test_deletes_doc_row(self, conn):
+        conn.execute("BEGIN")
+        self._insert_doc(conn)
+        db.delete_doc(conn, "autoscriptstudio/hub.md")
+        conn.execute("COMMIT")
+        row = conn.execute("SELECT 1 FROM doc WHERE path='autoscriptstudio/hub.md'").fetchone()
+        assert row is None
+
+    def test_deletes_outbound_edges(self, conn):
+        conn.execute("BEGIN")
+        self._insert_doc(conn)
+        db.upsert_edge(
+            conn,
+            source_type="doc", source_id="autoscriptstudio/hub.md",
+            edge_type="LINKS_TO",
+            target_type="doc", target_id="personal/notes.md",
+        )
+        db.delete_doc(conn, "autoscriptstudio/hub.md")
+        conn.execute("COMMIT")
+        count = conn.execute(
+            "SELECT COUNT(*) FROM edge WHERE source_type='doc' AND source_id='autoscriptstudio/hub.md'"
+        ).fetchone()[0]
+        assert count == 0
+
+    def test_deletes_broken_links(self, conn):
+        conn.execute("BEGIN")
+        self._insert_doc(conn)
+        db.upsert_broken_link(
+            conn,
+            source_doc="autoscriptstudio/hub.md",
+            link_text="dead",
+            link_target="gone.md",
+            detected_at="2026-05-05T00:00:00",
+        )
+        db.delete_doc(conn, "autoscriptstudio/hub.md")
+        conn.execute("COMMIT")
+        count = conn.execute(
+            "SELECT COUNT(*) FROM broken_link WHERE source_doc='autoscriptstudio/hub.md'"
+        ).fetchone()[0]
+        assert count == 0
+
+    def test_deletes_decisions_and_format_drift(self, conn):
+        conn.execute("BEGIN")
+        self._insert_doc(conn, "autoscriptstudio/decisions-log.md")
+        db.upsert_decision(
+            conn,
+            id="2026-05-05-test",
+            date="2026-05-05",
+            title="Test",
+            decision_text="We decided.",
+            why=None,
+            alternatives=None,
+            principle=None,
+            source_context=None,
+            log_doc="autoscriptstudio/decisions-log.md",
+            status="accepted",
+            parse_status="format_drift",
+            format_drift_notes="Missing Why",
+        )
+        db.upsert_format_drift(
+            conn,
+            artifact_kind="decision",
+            artifact_id="2026-05-05-test",
+            detected_at="2026-05-05T00:00:00",
+            notes="Missing Why",
+        )
+        db.upsert_edge(
+            conn,
+            source_type="decision", source_id="2026-05-05-test",
+            edge_type="ABOUT_DECISION",
+            target_type="doc", target_id="personal/notes.md",
+        )
+        db.delete_doc(conn, "autoscriptstudio/decisions-log.md")
+        conn.execute("COMMIT")
+
+        assert conn.execute(
+            "SELECT COUNT(*) FROM decision WHERE id='2026-05-05-test'"
+        ).fetchone()[0] == 0
+        assert conn.execute(
+            "SELECT COUNT(*) FROM format_drift WHERE artifact_id='2026-05-05-test'"
+        ).fetchone()[0] == 0
+        assert conn.execute(
+            "SELECT COUNT(*) FROM edge WHERE source_type='decision' AND source_id='2026-05-05-test'"
+        ).fetchone()[0] == 0
+
+    def test_no_error_on_nonexistent_path(self, conn):
+        conn.execute("BEGIN")
+        db.delete_doc(conn, "does/not/exist.md")
+        conn.execute("COMMIT")
+
+
+class TestRenameDoc:
+    def _insert_doc(self, conn, path):
+        conn.execute(
+            "INSERT INTO doc (path, parsed_at, parse_status) VALUES (?, ?, ?)",
+            (path, "2026-05-05T00:00:00", "ok"),
+        )
+
+    def test_updates_doc_path(self, conn):
+        conn.execute("BEGIN")
+        self._insert_doc(conn, "autoscriptstudio/old.md")
+        db.rename_doc(conn, "autoscriptstudio/old.md", "autoscriptstudio/new.md")
+        conn.execute("COMMIT")
+        assert conn.execute("SELECT 1 FROM doc WHERE path='autoscriptstudio/new.md'").fetchone() is not None
+        assert conn.execute("SELECT 1 FROM doc WHERE path='autoscriptstudio/old.md'").fetchone() is None
+
+    def test_updates_edge_source_id(self, conn):
+        conn.execute("BEGIN")
+        self._insert_doc(conn, "autoscriptstudio/old.md")
+        db.upsert_edge(
+            conn,
+            source_type="doc", source_id="autoscriptstudio/old.md",
+            edge_type="LINKS_TO",
+            target_type="doc", target_id="personal/notes.md",
+        )
+        db.rename_doc(conn, "autoscriptstudio/old.md", "autoscriptstudio/new.md")
+        conn.execute("COMMIT")
+        row = conn.execute(
+            "SELECT source_id FROM edge WHERE edge_type='LINKS_TO' AND source_type='doc'"
+        ).fetchone()
+        assert row["source_id"] == "autoscriptstudio/new.md"
+
+    def test_updates_edge_target_id(self, conn):
+        conn.execute("BEGIN")
+        self._insert_doc(conn, "autoscriptstudio/old.md")
+        db.upsert_edge(
+            conn,
+            source_type="doc", source_id="personal/hub.md",
+            edge_type="LINKS_TO",
+            target_type="doc", target_id="autoscriptstudio/old.md",
+        )
+        db.rename_doc(conn, "autoscriptstudio/old.md", "autoscriptstudio/new.md")
+        conn.execute("COMMIT")
+        row = conn.execute(
+            "SELECT target_id FROM edge WHERE source_id='personal/hub.md'"
+        ).fetchone()
+        assert row["target_id"] == "autoscriptstudio/new.md"
+
+    def test_updates_broken_link_source_doc(self, conn):
+        conn.execute("BEGIN")
+        self._insert_doc(conn, "autoscriptstudio/old.md")
+        db.upsert_broken_link(
+            conn,
+            source_doc="autoscriptstudio/old.md",
+            link_text="dead",
+            link_target="gone.md",
+            detected_at="2026-05-05T00:00:00",
+        )
+        db.rename_doc(conn, "autoscriptstudio/old.md", "autoscriptstudio/new.md")
+        conn.execute("COMMIT")
+        row = conn.execute("SELECT source_doc FROM broken_link").fetchone()
+        assert row["source_doc"] == "autoscriptstudio/new.md"
+
+    def test_deletes_old_fts_entry(self, conn):
+        conn.execute("BEGIN")
+        self._insert_doc(conn, "autoscriptstudio/old.md")
+        db.upsert_doc_fts(conn, path="autoscriptstudio/old.md", title="Old", body="body")
+        db.rename_doc(conn, "autoscriptstudio/old.md", "autoscriptstudio/new.md")
+        conn.execute("COMMIT")
+        count = conn.execute(
+            "SELECT COUNT(*) FROM doc_fts WHERE path='autoscriptstudio/old.md'"
+        ).fetchone()[0]
+        assert count == 0

@@ -47,10 +47,38 @@ This is a **src-layout** Python package (`src/cowork_graph/`). The CLI entrypoin
 
 **`uv.lock` is committed** — keeps builds reproducible across machines (SKYNET and SKYNET-DUEX both run the same lockfile).
 
+### Key modules
+
+- `cli.py` — command routing; `_write_doc_to_db` is the shared per-doc write helper used by both full build and incremental update.
+- `incremental.py` — incremental update logic: `git diff --name-status` parsing, rename rewiring, delete-before-reparse, SQL-based project→entity recompute. Called by `cowork-graph update --since <ref>`.
+- `db.py` — schema bootstrap + upsert helpers + `delete_doc` / `rename_doc` for incremental mode.
+- `parser.py` / `patterns.py` — markdown frontmatter and link parsing.
+- `queries.py` — read-only query layer used by the MCP server tools.
+- `audit.py` — ten drift-detection checks; returns structured findings dict.
+- `mcp_server.py` — FastMCP server exposing eight tools over stdio.
+
+### CLI commands
+
+```
+cowork-graph build                   # Full corpus walk → SQLite graph
+cowork-graph update --since HEAD~1   # Incremental re-parse of changed files only
+cowork-graph reindex                 # Full rebuild alias (used by git hook on merge commits)
+cowork-graph audit [--write]         # Ten drift checks; --write saves markdown report
+cowork-graph mcp serve               # Start MCP server over stdio
+cowork-graph mcp install             # Register with MCP clients
+```
+
+### Sync hook
+
+`scripts/install-hook.sh [/path/to/cowork]` writes a post-commit hook that backgrounds `cowork-graph update --since HEAD~1` after every cowork commit. The CLI detects merge commits and falls back to a full rebuild automatically.
+
 ## Phase status
 
-- **Phase 1** (schema design) — frozen 2026-05-05. No code changes needed.
-- **Phase 2** (parser v0) — next. Reads cowork markdown, populates SQLite graph per the frozen schema.
-- **Phase 5** (sync hook) — `scripts/install-hook.sh` is a placeholder; real implementation wires a post-commit hook into cowork's `.git/hooks/`.
+- **Phase 1** (schema design) — complete 2026-05-05.
+- **Phase 2** (parser v0) — complete. Full corpus walk populates the SQLite graph.
+- **Phase 3** (MCP server v0) — complete. Eight tools, FastMCP, `mcp serve` / `mcp install` CLI.
+- **Phase 4** (audit module) — complete. Ten drift checks, CLI subcommand, MCP tool, 48 tests.
+- **Phase 5** (sync hook) — complete. `cowork-graph update --since <ref>` for incremental builds; `scripts/install-hook.sh` installs the post-commit hook.
+- **Phase 6** (ghost-project fix) — complete. Post-walk pass flips `is_ghost=0` when `memory/projects/<slug>.md` exists.
 
-Do not implement Phase 2+ work without first reading `plan.md` from the cowork side.
+Do not make schema changes without first reading `plan.md` from the cowork side.

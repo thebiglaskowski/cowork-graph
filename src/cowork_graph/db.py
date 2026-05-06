@@ -144,6 +144,54 @@ def resolve_ghost_projects(conn: sqlite3.Connection) -> int:
     return resolved
 
 
+def delete_doc(conn: sqlite3.Connection, path: str) -> None:
+    """Delete all derived rows for a doc: decisions, their edges/format_drift, outbound edges, broken_links, FTS, and the doc row itself."""
+    decision_ids = [
+        row[0]
+        for row in conn.execute(
+            "SELECT id FROM decision WHERE log_doc=?", (path,)
+        ).fetchall()
+    ]
+    for did in decision_ids:
+        conn.execute(
+            "DELETE FROM format_drift WHERE artifact_kind='decision' AND artifact_id=?",
+            (did,),
+        )
+        conn.execute(
+            "DELETE FROM edge WHERE source_type='decision' AND source_id=?",
+            (did,),
+        )
+    conn.execute("DELETE FROM decision WHERE log_doc=?", (path,))
+    conn.execute(
+        "DELETE FROM edge WHERE source_type='doc' AND source_id=?", (path,)
+    )
+    conn.execute("DELETE FROM broken_link WHERE source_doc=?", (path,))
+    conn.execute("DELETE FROM doc_fts WHERE path=?", (path,))
+    conn.execute("DELETE FROM doc WHERE path=?", (path,))
+
+
+def rename_doc(conn: sqlite3.Connection, old_path: str, new_path: str) -> None:
+    """Rename a doc path across doc, edge, broken_link, and FTS tables.
+
+    Inbound edges from other docs (target_id) are also updated so graph integrity is preserved.
+    The FTS entry is deleted; the caller must re-insert after re-parsing.
+    """
+    conn.execute("UPDATE doc SET path=? WHERE path=?", (new_path, old_path))
+    conn.execute(
+        "UPDATE edge SET source_id=? WHERE source_type='doc' AND source_id=?",
+        (new_path, old_path),
+    )
+    conn.execute(
+        "UPDATE edge SET target_id=? WHERE target_type='doc' AND target_id=?",
+        (new_path, old_path),
+    )
+    conn.execute(
+        "UPDATE broken_link SET source_doc=? WHERE source_doc=?",
+        (new_path, old_path),
+    )
+    conn.execute("DELETE FROM doc_fts WHERE path=?", (old_path,))
+
+
 def upsert_vendor(
     conn: sqlite3.Connection,
     *,

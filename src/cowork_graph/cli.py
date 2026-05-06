@@ -12,6 +12,16 @@ from cowork_graph import db, parser
 from cowork_graph.walker import walk
 
 
+_LABEL_TO_EDGE: dict[str, tuple[str, str]] = {
+    "Related hubs": ("RELATED_TO", "parent_hub"),
+    "Related hub": ("RELATED_TO", "parent_hub"),
+    "Siblings": ("RELATED_TO", "sibling"),
+    "Sibling": ("RELATED_TO", "sibling"),
+    "Downstream": ("BLOCKS", "downstream"),
+    "Upstream": ("BLOCKS", "upstream"),
+}
+
+
 def main() -> int:
     args = sys.argv[1:]
     if not args or args[0] == "help":
@@ -19,6 +29,10 @@ def main() -> int:
         return 0
     if args[0] == "build":
         return _cmd_build(args[1:])
+    if args[0] == "update":
+        return _cmd_update(args[1:])
+    if args[0] == "reindex":
+        return _cmd_reindex(args[1:])
     if args[0] == "mcp":
         return _cmd_mcp(args[1:])
     if args[0] == "audit":
@@ -32,11 +46,13 @@ def _print_help() -> None:
         "cowork-graph CLI\n"
         "\n"
         "Commands:\n"
-        "  build              Walk the cowork corpus and write the SQLite graph DB.\n"
-        "  audit [--write]    Run ten drift-detection checks; --write saves a report.\n"
-        "  mcp serve          Start the MCP server over stdio.\n"
-        "  mcp install        Register with MCP clients (default: --all).\n"
-        "  help               Show this message.\n"
+        "  build                      Walk the cowork corpus and write the SQLite graph DB.\n"
+        "  update --since <git-ref>   Incrementally re-parse files changed since <git-ref>.\n"
+        "  reindex                    Full rebuild (alias for build; used by the git hook on merges).\n"
+        "  audit [--write]            Run ten drift-detection checks; --write saves a report.\n"
+        "  mcp serve                  Start the MCP server over stdio.\n"
+        "  mcp install                Register with MCP clients (default: --all).\n"
+        "  help                       Show this message.\n"
         "\n"
         "mcp install flags: --desktop  --code-wsl  --code-ps  --all\n"
         "\n"
@@ -153,157 +169,17 @@ def _cmd_build(_args: list[str]) -> int:
 
         conn.execute("BEGIN")
         try:
-            db.upsert_doc(
+            n_broken_links += _write_doc_to_db(
                 conn,
-                path=result.path,
-                title=result.title,
-                status=result.status,
-                doc_type=result.doc_type,
-                word_count=result.word_count,
-                link_count=result.link_count,
-                last_modified=result.last_modified,
-                parsed_at=result.parsed_at,
-                parse_status=result.parse_status,
-                parse_notes=result.parse_notes,
+                result,
+                body_text,
+                rel_path,
+                parsed_at,
+                is_decision_log,
+                text,
+                cowork_root,
+                votes_acc=project_entity_votes,
             )
-            db.upsert_doc_fts(
-                conn,
-                path=result.path,
-                title=result.title,
-                body=body_text,
-            )
-
-            # Tags and TAGGED edges
-            for tag in result.tags:
-                db.upsert_tag(conn, tag=tag)
-                db.upsert_edge(
-                    conn,
-                    source_type="doc", source_id=rel_path,
-                    edge_type="TAGGED",
-                    target_type="tag", target_id=tag,
-                )
-
-            # MEMBER_OF_PROJECT edges + ghost projects
-            for slug in result.project_slugs:
-                # Ghost project if no hub doc yet (hub check done after full walk)
-                conn.execute(
-                    "INSERT OR IGNORE INTO project (slug, hub_doc, is_ghost) VALUES (?, NULL, 1)",
-                    (slug,),
-                )
-                db.upsert_edge(
-                    conn,
-                    source_type="doc", source_id=rel_path,
-                    edge_type="MEMBER_OF_PROJECT",
-                    target_type="project", target_id=slug,
-                )
-                # Vote for entity membership
-                if result.entity:
-                    votes = project_entity_votes.setdefault(slug, {})
-                    votes[result.entity] = votes.get(result.entity, 0) + 1
-
-            # MEMBER_OF_ENTITY edge for the doc itself
-            if result.entity:
-                db.upsert_edge(
-                    conn,
-                    source_type="doc", source_id=rel_path,
-                    edge_type="MEMBER_OF_ENTITY",
-                    target_type="entity", target_id=result.entity,
-                )
-
-            # Related-block edges
-            label_to_edge: dict[str, tuple[str, str]] = {
-                "Related hubs": ("RELATED_TO", "parent_hub"),
-                "Related hub": ("RELATED_TO", "parent_hub"),
-                "Siblings": ("RELATED_TO", "sibling"),
-                "Sibling": ("RELATED_TO", "sibling"),
-                "Downstream": ("BLOCKS", "downstream"),
-                "Upstream": ("BLOCKS", "upstream"),
-            }
-            for block in result.related_blocks:
-                edge_type, edge_subtype = label_to_edge.get(block.label, ("RELATED_TO", ""))
-                for raw_target in block.targets:
-                    bare = raw_target.split("#")[0]
-                    doc_dir = PurePosixPath(rel_path).parent
-                    resolved_rel = (doc_dir / bare).as_posix()
-                    db.upsert_edge(
-                        conn,
-                        source_type="doc", source_id=rel_path,
-                        edge_type=edge_type,
-                        target_type="doc", target_id=resolved_rel,
-                        edge_subtype=edge_subtype,
-                    )
-
-            # LINKS_TO edges and broken_link rows
-            for link in result.links:
-                if link.is_anchor or link.is_external:
-                    continue
-                if link.is_broken:
-                    n_broken_links += 1
-                    db.upsert_broken_link(
-                        conn,
-                        source_doc=rel_path,
-                        link_text=link.text,
-                        link_target=link.raw_target,
-                        detected_at=parsed_at,
-                    )
-                else:
-                    db.upsert_edge(
-                        conn,
-                        source_type="doc", source_id=rel_path,
-                        edge_type="LINKS_TO",
-                        target_type="doc", target_id=link.resolved or link.raw_target,
-                    )
-
-            # MENTIONS edges
-            for mention in result.mentions:
-                db.upsert_edge(
-                    conn,
-                    source_type="doc", source_id=rel_path,
-                    edge_type="MENTIONS",
-                    target_type="person", target_id=mention.person_slug,
-                    confidence="high",
-                    context=mention.context[:120],
-                )
-
-            # Decision log parsing
-            if is_decision_log:
-                decisions = parser.parse_decision_log(
-                    text, log_doc=rel_path, cowork_root=cowork_root
-                )
-                for decision in decisions:
-                    db.upsert_decision(
-                        conn,
-                        id=decision.id,
-                        date=decision.date,
-                        title=decision.title,
-                        decision_text=decision.decision_text,
-                        why=decision.why,
-                        alternatives=decision.alternatives,
-                        principle=decision.principle,
-                        source_context=decision.source_context,
-                        log_doc=rel_path,
-                        status=decision.status,
-                        parse_status=decision.parse_status,
-                        format_drift_notes=decision.format_drift_notes,
-                    )
-                    if decision.parse_status == "format_drift":
-                        db.upsert_format_drift(
-                            conn,
-                            artifact_kind="decision",
-                            artifact_id=decision.id,
-                            detected_at=parsed_at,
-                            notes=decision.format_drift_notes or "",
-                        )
-                    # ABOUT_DECISION edges from source_context links
-                    for link in decision.source_links:
-                        if not link.is_broken and link.resolved:
-                            db.upsert_edge(
-                                conn,
-                                source_type="decision", source_id=decision.id,
-                                edge_type="ABOUT_DECISION",
-                                target_type="doc", target_id=link.resolved,
-                            )
-
             conn.execute("COMMIT")
         except Exception as exc:
             conn.execute("ROLLBACK")
@@ -377,6 +253,208 @@ def _cmd_audit(args: list[str]) -> int:
     if result["report_written"]:
         print(f"Report written: {result['report_written']}")
     return 0
+
+
+def _write_doc_to_db(
+    conn,
+    result,
+    body_text: str,
+    rel_path: str,
+    parsed_at: str,
+    is_decision_log: bool,
+    text: str,
+    cowork_root,
+    *,
+    votes_acc: dict | None,
+) -> int:
+    """Write all derived rows for one parsed doc. Caller holds the transaction.
+
+    Returns the number of broken links recorded for this doc.
+    """
+    n_broken = 0
+
+    db.upsert_doc(
+        conn,
+        path=result.path,
+        title=result.title,
+        status=result.status,
+        doc_type=result.doc_type,
+        word_count=result.word_count,
+        link_count=result.link_count,
+        last_modified=result.last_modified,
+        parsed_at=result.parsed_at,
+        parse_status=result.parse_status,
+        parse_notes=result.parse_notes,
+    )
+    db.upsert_doc_fts(conn, path=result.path, title=result.title, body=body_text)
+
+    for tag in result.tags:
+        db.upsert_tag(conn, tag=tag)
+        db.upsert_edge(
+            conn,
+            source_type="doc", source_id=rel_path,
+            edge_type="TAGGED",
+            target_type="tag", target_id=tag,
+        )
+
+    for slug in result.project_slugs:
+        conn.execute(
+            "INSERT OR IGNORE INTO project (slug, hub_doc, is_ghost) VALUES (?, NULL, 1)",
+            (slug,),
+        )
+        db.upsert_edge(
+            conn,
+            source_type="doc", source_id=rel_path,
+            edge_type="MEMBER_OF_PROJECT",
+            target_type="project", target_id=slug,
+        )
+        if votes_acc is not None and result.entity:
+            votes = votes_acc.setdefault(slug, {})
+            votes[result.entity] = votes.get(result.entity, 0) + 1
+
+    if result.entity:
+        db.upsert_edge(
+            conn,
+            source_type="doc", source_id=rel_path,
+            edge_type="MEMBER_OF_ENTITY",
+            target_type="entity", target_id=result.entity,
+        )
+
+    for block in result.related_blocks:
+        edge_type, edge_subtype = _LABEL_TO_EDGE.get(block.label, ("RELATED_TO", ""))
+        for raw_target in block.targets:
+            bare = raw_target.split("#")[0]
+            doc_dir = PurePosixPath(rel_path).parent
+            resolved_rel = (doc_dir / bare).as_posix()
+            db.upsert_edge(
+                conn,
+                source_type="doc", source_id=rel_path,
+                edge_type=edge_type,
+                target_type="doc", target_id=resolved_rel,
+                edge_subtype=edge_subtype,
+            )
+
+    for link in result.links:
+        if link.is_anchor or link.is_external:
+            continue
+        if link.is_broken:
+            n_broken += 1
+            db.upsert_broken_link(
+                conn,
+                source_doc=rel_path,
+                link_text=link.text,
+                link_target=link.raw_target,
+                detected_at=parsed_at,
+            )
+        else:
+            db.upsert_edge(
+                conn,
+                source_type="doc", source_id=rel_path,
+                edge_type="LINKS_TO",
+                target_type="doc", target_id=link.resolved or link.raw_target,
+            )
+
+    for mention in result.mentions:
+        db.upsert_edge(
+            conn,
+            source_type="doc", source_id=rel_path,
+            edge_type="MENTIONS",
+            target_type="person", target_id=mention.person_slug,
+            confidence="high",
+            context=mention.context[:120],
+        )
+
+    if is_decision_log:
+        decisions = parser.parse_decision_log(text, log_doc=rel_path, cowork_root=cowork_root)
+        for decision in decisions:
+            db.upsert_decision(
+                conn,
+                id=decision.id,
+                date=decision.date,
+                title=decision.title,
+                decision_text=decision.decision_text,
+                why=decision.why,
+                alternatives=decision.alternatives,
+                principle=decision.principle,
+                source_context=decision.source_context,
+                log_doc=rel_path,
+                status=decision.status,
+                parse_status=decision.parse_status,
+                format_drift_notes=decision.format_drift_notes,
+            )
+            if decision.parse_status == "format_drift":
+                db.upsert_format_drift(
+                    conn,
+                    artifact_kind="decision",
+                    artifact_id=decision.id,
+                    detected_at=parsed_at,
+                    notes=decision.format_drift_notes or "",
+                )
+            for link in decision.source_links:
+                if not link.is_broken and link.resolved:
+                    db.upsert_edge(
+                        conn,
+                        source_type="decision", source_id=decision.id,
+                        edge_type="ABOUT_DECISION",
+                        target_type="doc", target_id=link.resolved,
+                    )
+
+    return n_broken
+
+
+def _cmd_update(args: list[str]) -> int:
+    if "--since" not in args:
+        print("Usage: cowork-graph update --since <git-ref>", file=sys.stderr)
+        return 1
+    idx = args.index("--since")
+    if idx + 1 >= len(args):
+        print("Error: --since requires a git ref argument.", file=sys.stderr)
+        return 1
+    since_ref = args[idx + 1]
+
+    cfg = cfg_mod.load()
+    cowork_root = cfg.cowork_root.resolve()
+
+    if not cowork_root.exists():
+        print(f"Error: cowork_root does not exist: {cowork_root}", file=sys.stderr)
+        return 1
+
+    if not cfg.db_path.exists():
+        print("Graph DB not found — running full build.", file=sys.stderr)
+        return _cmd_build([])
+
+    from cowork_graph import incremental as inc_mod
+
+    if inc_mod.is_merge_commit(cowork_root):
+        print("Merge commit detected — running full rebuild.", file=sys.stderr)
+        return _cmd_build([])
+
+    conn = db.connect(cfg.db_path)
+    t0 = time.monotonic()
+
+    persons: dict[str, str] = {
+        row["slug"]: row["display_name"]
+        for row in conn.execute(
+            "SELECT slug, display_name FROM person WHERE is_ghost=0"
+        ).fetchall()
+    }
+
+    try:
+        summary = inc_mod.run_incremental(conn, since_ref, cowork_root, persons)
+    finally:
+        conn.close()
+
+    duration = time.monotonic() - t0
+    print(
+        f"incremental: +{summary['added']} added, ~{summary['modified']} modified, "
+        f"-{summary['deleted']} deleted, >{summary['renamed']} renamed, "
+        f"{summary['failed']} failed, {duration:.1f}s"
+    )
+    return 0
+
+
+def _cmd_reindex(args: list[str]) -> int:
+    return _cmd_build([])
 
 
 def _display_name_from_fm(fm: dict, slug: str) -> str:
