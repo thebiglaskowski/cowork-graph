@@ -4,8 +4,10 @@
 # Usage: sh scripts/install-hook.sh [/path/to/cowork]
 #
 # Defaults to /mnt/c/Users/joela/cowork if no argument is given.
-# The hook calls `cowork-graph update --since HEAD~1` after every commit,
-# falling back to a full rebuild on merge commits (handled inside the CLI).
+# Safe to re-run — idempotent; will not double-insert the hook line.
+# Appends to an existing hook (e.g. git-lfs) rather than overwriting it.
+# The hook calls `cowork-graph update --since HEAD~1` after every commit;
+# merge commits trigger a full rebuild (handled inside the CLI).
 
 set -e
 
@@ -18,16 +20,32 @@ if [ ! -d "$COWORK_DIR/.git" ]; then
     exit 1
 fi
 
-if ! command -v cowork-graph >/dev/null 2>&1; then
-    echo "Error: cowork-graph not found on PATH. Run 'uv sync' in $REPO_DIR first." >&2
+# Resolve CLI: prefer PATH, fall back to project venv
+if command -v cowork-graph >/dev/null 2>&1; then
+    CLI="cowork-graph"
+elif [ -x "$REPO_DIR/.venv/bin/cowork-graph" ]; then
+    CLI="$REPO_DIR/.venv/bin/cowork-graph"
+else
+    echo "Error: cowork-graph not found. Run 'uv sync' in $REPO_DIR first." >&2
     exit 1
 fi
 
-cat > "$HOOK_PATH" <<'HOOK'
-#!/bin/sh
-# cowork-graph sync hook — installed by scripts/install-hook.sh
-cowork-graph update --since HEAD~1 &
+# Idempotency check
+if grep -q "cowork-graph update" "$HOOK_PATH" 2>/dev/null; then
+    echo "Hook already installed: $HOOK_PATH"
+    exit 0
+fi
+
+# Create hook file with shebang if it doesn't exist yet
+if [ ! -f "$HOOK_PATH" ]; then
+    printf '#!/bin/sh\n' > "$HOOK_PATH"
+    chmod +x "$HOOK_PATH"
+fi
+
+# Append (preserves any existing hook content, e.g. git-lfs)
+cat >> "$HOOK_PATH" <<HOOK
+# cowork-graph sync — installed by $REPO_DIR/scripts/install-hook.sh
+$CLI update --since HEAD~1 &
 HOOK
 
-chmod +x "$HOOK_PATH"
-echo "Hook installed: $HOOK_PATH"
+echo "Hook installed: $HOOK_PATH (CLI: $CLI)"
