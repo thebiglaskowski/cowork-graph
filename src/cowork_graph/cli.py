@@ -325,6 +325,13 @@ def _cmd_build(_args: list[str]) -> int:
     conn.execute("COMMIT")
 
     # ---------------------------------------------------------------------------
+    # Pass 4: resolve ghost projects (flip is_ghost=0 where hub doc exists)
+    # ---------------------------------------------------------------------------
+    conn.execute("BEGIN")
+    db.resolve_ghost_projects(conn)
+    conn.execute("COMMIT")
+
+    # ---------------------------------------------------------------------------
     # Finalize meta and print summary
     # ---------------------------------------------------------------------------
     db.update_meta(conn, built_at=built_at, build_kind="full")

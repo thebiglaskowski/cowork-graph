@@ -290,3 +290,58 @@ class TestUpdateMeta:
             "SELECT value FROM schema_meta WHERE key='built_at'"
         ).fetchone()
         assert row["value"] == "2026-05-05T12:00:00"
+
+
+class TestResolveGhostProjects:
+    def _insert_doc(self, conn, path):
+        conn.execute(
+            "INSERT INTO doc (path, parsed_at, parse_status) VALUES (?, ?, ?)",
+            (path, "2026-05-05T00:00:00", "ok"),
+        )
+
+    def _insert_ghost(self, conn, slug):
+        conn.execute(
+            "INSERT INTO project (slug, hub_doc, is_ghost) VALUES (?, NULL, 1)",
+            (slug,),
+        )
+
+    def test_flips_project_when_hub_doc_exists(self, conn):
+        conn.execute("BEGIN")
+        self._insert_doc(conn, "memory/projects/my-project.md")
+        self._insert_ghost(conn, "my-project")
+        resolved = db.resolve_ghost_projects(conn)
+        conn.execute("COMMIT")
+
+        assert resolved == 1
+        row = conn.execute("SELECT is_ghost, hub_doc FROM project WHERE slug='my-project'").fetchone()
+        assert row["is_ghost"] == 0
+        assert row["hub_doc"] == "memory/projects/my-project.md"
+
+    def test_leaves_project_ghost_when_no_hub_doc(self, conn):
+        conn.execute("BEGIN")
+        self._insert_ghost(conn, "orphan-project")
+        resolved = db.resolve_ghost_projects(conn)
+        conn.execute("COMMIT")
+
+        assert resolved == 0
+        row = conn.execute("SELECT is_ghost, hub_doc FROM project WHERE slug='orphan-project'").fetchone()
+        assert row["is_ghost"] == 1
+        assert row["hub_doc"] is None
+
+    def test_resolves_only_matching_slugs(self, conn):
+        conn.execute("BEGIN")
+        self._insert_doc(conn, "memory/projects/has-hub.md")
+        self._insert_ghost(conn, "has-hub")
+        self._insert_ghost(conn, "no-hub")
+        resolved = db.resolve_ghost_projects(conn)
+        conn.execute("COMMIT")
+
+        assert resolved == 1
+        assert conn.execute("SELECT is_ghost FROM project WHERE slug='has-hub'").fetchone()["is_ghost"] == 0
+        assert conn.execute("SELECT is_ghost FROM project WHERE slug='no-hub'").fetchone()["is_ghost"] == 1
+
+    def test_returns_zero_when_no_projects(self, conn):
+        conn.execute("BEGIN")
+        resolved = db.resolve_ghost_projects(conn)
+        conn.execute("COMMIT")
+        assert resolved == 0

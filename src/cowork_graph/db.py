@@ -125,6 +125,25 @@ def upsert_project(
     )
 
 
+def resolve_ghost_projects(conn: sqlite3.Connection) -> int:
+    """Flip is_ghost=0 and set hub_doc for projects whose memory/projects/<slug>.md exists.
+
+    Returns the number of projects resolved.
+    """
+    rows = conn.execute("SELECT slug FROM project WHERE is_ghost=1").fetchall()
+    resolved = 0
+    for row in rows:
+        slug = row["slug"]
+        hub_path = f"memory/projects/{slug}.md"
+        if conn.execute("SELECT 1 FROM doc WHERE path=?", (hub_path,)).fetchone():
+            conn.execute(
+                "UPDATE project SET is_ghost=0, hub_doc=? WHERE slug=?",
+                (hub_path, slug),
+            )
+            resolved += 1
+    return resolved
+
+
 def upsert_vendor(
     conn: sqlite3.Connection,
     *,
