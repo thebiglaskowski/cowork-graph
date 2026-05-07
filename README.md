@@ -12,7 +12,7 @@ pair:
 
 # cowork-graph
 
-Local SQLite knowledge graph over the entire `cowork/` markdown corpus, exposed to Claude Desktop, Claude Code WSL, and Claude Code PowerShell through a custom MCP server. Markdown stays canonical; the graph is derived state and never committed.
+Local SQLite knowledge graph over the entire [`cowork/` markdown corpus](https://github.com/thebiglaskowski/cowork), exposed to Claude Desktop, Claude Code WSL, and Claude Code PowerShell through a custom MCP server. Markdown stays canonical; the graph is derived state and never committed.
 
 **Canonical plan and schema reference:** `cowork/claude-environment/cowork-graph/plan.md` — single source of truth for design decisions, schema, and parser rules. Code-side conventions and runtime usage live here.
 
