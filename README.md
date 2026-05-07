@@ -8,6 +8,8 @@ pair:
     wsl: source code (Python parser, MCP server, CLI), tests, dependencies, build artifacts, install scripts
 ---
 
+![cowork-graph](assets/graph.png)
+
 # cowork-graph
 
 Local SQLite knowledge graph over the entire `cowork/` markdown corpus, exposed to Claude Desktop, Claude Code WSL, and Claude Code PowerShell through a custom MCP server. Markdown stays canonical; the graph is derived state and never committed.
