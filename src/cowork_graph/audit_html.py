@@ -7,6 +7,7 @@ with no external dependencies — all CSS is embedded, no CDN, no JS.
 from __future__ import annotations
 
 import html as _html
+import os as _os
 import sqlite3
 from pathlib import Path
 
@@ -45,19 +46,19 @@ _CSS = """\
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: Georgia, 'Times New Roman', serif;
-  background: #fafafa; color: #222; line-height: 1.65; font-size: 15px;
+  background: #16161a; color: #e1e4e8; line-height: 1.65; font-size: 15px;
 }
 .container { max-width: 880px; margin: 0 auto; padding: 2rem 1.5rem; }
-header { border-bottom: 2px solid #e0e0e0; padding-bottom: 1.5rem; margin-bottom: 2rem; }
-header h1 { font-size: 1.6rem; }
-.meta { color: #666; font-size: 0.875rem; margin-top: 0.35rem; }
-h2 { font-size: 1.15rem; margin-bottom: 1rem; }
+header { border-bottom: 2px solid #2d3138; padding-bottom: 1.5rem; margin-bottom: 2rem; }
+header h1 { font-size: 1.6rem; color: #f0f3f6; }
+.meta { color: #8b949e; font-size: 0.875rem; margin-top: 0.35rem; }
+h2 { font-size: 1.15rem; margin-bottom: 1rem; color: #f0f3f6; }
 code {
   font-family: 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.85em; background: #f0f0f0;
+  font-size: 0.85em; background: #262830; color: #e1e4e8;
   padding: 0.1em 0.3em; border-radius: 3px;
 }
-a { color: #2563eb; } a:visited { color: #7c3aed; }
+a { color: #58a6ff; } a:visited { color: #a371f7; }
 
 /* Summary pills */
 .summary { margin-bottom: 2rem; }
@@ -68,18 +69,18 @@ a { color: #2563eb; } a:visited { color: #7c3aed; }
   font-size: 0.78rem; font-family: 'SF Mono', Menlo, Consolas, monospace;
   color: white; font-weight: 600; text-decoration: none;
 }
-.pill-high { background: #c0392b; } .pill-medium { background: #d68910; }
-.pill-low  { background: #b7950b; } .pill-info   { background: #7f8c8d; }
-.pill-ok   { background: #27ae60; }
+.pill-high { background: #f85149; } .pill-medium { background: #e3b341; }
+.pill-low  { background: #d29922; } .pill-info   { background: #8b949e; }
+.pill-ok   { background: #3fb950; }
 
 /* Corpus chart */
 .corpus-status { margin-top: 1.25rem; }
-.corpus-status h3 { margin-bottom: 0.6rem; font-size: 0.9rem; color: #555; font-weight: normal; }
+.corpus-status h3 { margin-bottom: 0.6rem; font-size: 0.9rem; color: #8b949e; font-weight: normal; }
 .corpus-status svg { width: 100%; max-width: 500px; display: block; }
 
 /* TOC */
 nav.toc {
-  background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;
+  background: #1f2128; border: 1px solid #2d3138; border-radius: 6px;
   padding: 1rem 1.5rem; margin-bottom: 2rem;
 }
 nav.toc h2 { margin-bottom: 0.5rem; }
@@ -89,49 +90,49 @@ nav.toc a { text-decoration: none; } nav.toc a:hover { text-decoration: underlin
 
 /* Rule sections */
 .rule-section {
-  margin-bottom: 1.1rem; background: #fff;
-  border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden;
+  margin-bottom: 1.1rem; background: #1f2128;
+  border: 1px solid #2d3138; border-radius: 6px; overflow: hidden;
 }
 .rule-section > summary {
-  cursor: pointer; padding: 0.8rem 1.2rem; background: #f7f7f7;
+  cursor: pointer; padding: 0.8rem 1.2rem; background: #25272e;
   display: flex; align-items: center; justify-content: space-between;
   list-style: none; user-select: none;
 }
 .rule-section > summary::-webkit-details-marker { display: none; }
 .rule-section > summary::marker { display: none; }
-.rule-section > summary:hover { background: #f0f0f0; }
-.rule-title { font-weight: bold; font-size: 0.95rem; }
+.rule-section > summary:hover { background: #2a2c33; }
+.rule-title { font-weight: bold; font-size: 0.95rem; color: #f0f3f6; }
 .finding-count {
   font-size: 0.75rem; font-family: 'SF Mono', Menlo, Consolas, monospace;
   padding: 0.2rem 0.6rem; border-radius: 999px; color: white; font-weight: 600;
 }
-.badge-high { background: #c0392b; } .badge-medium { background: #d68910; }
-.badge-low  { background: #b7950b; } .badge-info   { background: #7f8c8d; }
-.badge-ok   { background: #27ae60; }
+.badge-high { background: #f85149; } .badge-medium { background: #e3b341; }
+.badge-low  { background: #d29922; } .badge-info   { background: #8b949e; }
+.badge-ok   { background: #3fb950; }
 
 /* Finding cards */
 .findings { padding: 0.6rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.55rem; }
 .finding {
   padding: 0.8rem 1rem 0.8rem 1.15rem;
-  background: #fafafa; border-left: 4px solid #ccc;
+  background: #1f2128; border-left: 4px solid #2d3138;
   border-radius: 0 4px 4px 0;
 }
-.finding.severity-high   { border-left-color: #c0392b; background: #fff8f7; }
-.finding.severity-medium { border-left-color: #d68910; background: #fffbf3; }
-.finding.severity-low    { border-left-color: #b7950b; background: #fffef0; }
-.finding.severity-info   { border-left-color: #7f8c8d; }
+.finding.severity-high   { border-left-color: #f85149; background: #2a1c1c; }
+.finding.severity-medium { border-left-color: #e3b341; background: #2a241a; }
+.finding.severity-low    { border-left-color: #d29922; background: #2a2818; }
+.finding.severity-info   { border-left-color: #8b949e; }
 .finding-title { margin-bottom: 0.3rem; font-size: 0.95rem; }
-.finding-body  { font-size: 0.875rem; color: #444; margin-top: 0.2rem; }
+.finding-body  { font-size: 0.875rem; color: #8b949e; margin-top: 0.2rem; }
 .source-link {
   display: inline-block; margin-top: 0.4rem;
   font-size: 0.78rem; font-family: 'SF Mono', Menlo, Consolas, monospace;
 }
-.no-findings { padding: 0.75rem 1rem; color: #888; font-style: italic; font-size: 0.875rem; }
+.no-findings { padding: 0.75rem 1rem; color: #8b949e; font-style: italic; font-size: 0.875rem; }
 
 /* Footer */
 footer {
-  margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #e0e0e0;
-  font-size: 0.78rem; color: #999;
+  margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #2d3138;
+  font-size: 0.78rem; color: #8b949e;
   font-family: 'SF Mono', Menlo, Consolas, monospace;
   display: flex; flex-direction: column; gap: 0.2rem;
 }"""
@@ -155,16 +156,16 @@ def write_html_report(
     meta = _query_meta(db_path)
     status_counts = _query_status_counts(db_path)
 
-    link_prefix: str | None = None
+    _link_ctx: tuple[Path, Path] | None = None
     if cowork_root is not None:
         try:
-            depth = len(output_path.parent.relative_to(cowork_root).parts)
-            link_prefix = "../" * depth
+            output_path.parent.relative_to(cowork_root)  # validate containment
+            _link_ctx = (cowork_root, output_path.parent)
         except ValueError:
             pass
 
     output_path.write_text(
-        _render(result, meta, status_counts, link_prefix),
+        _render(result, meta, status_counts, _link_ctx),
         encoding="utf-8",
     )
 
@@ -205,7 +206,7 @@ def _render(
     result: dict,
     meta: dict[str, str],
     status_counts: list[tuple[str, int]],
-    link_prefix: str | None,
+    _link_ctx: tuple[Path, Path] | None,
 ) -> str:
     e = _html.escape
     date_str = result.get("run_at", "")[:10]
@@ -271,15 +272,13 @@ def _render(
 
     # Rule sections
     p.append("<main>")
-    first = True
     for rule, items in findings.items():
         sev = _SEVERITY.get(rule, "info")
         label = _SECTION_LABELS.get(rule, rule)
         count = len(items)
         badge_cls = f"badge-{'ok' if count == 0 else sev}"
         badge_txt = "ok" if count == 0 else str(count)
-        open_attr = " open" if first else ""
-        first = False
+        open_attr = " open" if count > 0 else ""
 
         p.append(f'  <details class="rule-section" id="{_rule_id(rule)}"{open_attr}>')
         p += [
@@ -294,7 +293,7 @@ def _render(
         else:
             p.append('    <div class="findings">')
             for item in items:
-                p.extend(_render_finding(rule, item, sev, link_prefix))
+                p.extend(_render_finding(rule, item, sev, _link_ctx))
             p.append("    </div>")
 
         p.append("  </details>")
@@ -324,7 +323,7 @@ def _render_finding(
     rule: str,
     item: dict,
     severity: str,
-    link_prefix: str | None,
+    _link_ctx: tuple[Path, Path] | None,
 ) -> list[str]:
     e = _html.escape
     title_html, body_html, source_path = _finding_content(rule, item)
@@ -333,8 +332,9 @@ def _render_finding(
     if body_html:
         p.append(f'        <div class="finding-body">{body_html}</div>')
     if source_path:
-        if link_prefix is not None:
-            href = e(link_prefix + source_path)
+        if _link_ctx is not None:
+            cowork_root, html_dir = _link_ctx
+            href = e(_os.path.relpath(str(cowork_root / source_path), str(html_dir)))
             p.append(f'        <a class="source-link" href="{href}">source: {e(source_path)}</a>')
         else:
             p.append(
@@ -409,6 +409,9 @@ def _finding_content(rule: str, item: dict) -> tuple[str, str, str | None]:
 # ---------------------------------------------------------------------------
 
 
+_MIN_BAR_PX = 6
+
+
 def _build_svg(status_counts: list[tuple[str, int]]) -> str:
     e = _html.escape
     max_count = max(c for _, c in status_counts)
@@ -426,11 +429,11 @@ def _build_svg(status_counts: list[tuple[str, int]]) -> str:
     ]
     for i, (status, count) in enumerate(status_counts):
         y = pad + i * row_h
-        bar_w = int((count / max_count) * bar_area) if max_count > 0 else 0
+        bar_w = max(_MIN_BAR_PX, int((count / max_count) * bar_area)) if max_count > 0 else 0
         color = _SVG_COLORS[i % len(_SVG_COLORS)]
         lines.append(
             f'  <text x="{label_w - 6}" y="{y + 14}" text-anchor="end"'
-            f' {mono} font-size="11" fill="#555">{e(status)}</text>'
+            f' {mono} font-size="11" fill="#8b949e">{e(status)}</text>'
         )
         if bar_w > 0:
             lines.append(
@@ -439,7 +442,7 @@ def _build_svg(status_counts: list[tuple[str, int]]) -> str:
             )
         lines.append(
             f'  <text x="{label_w + bar_w + 5}" y="{y + 14}"'
-            f' {mono} font-size="11" fill="#333">{count}</text>'
+            f' {mono} font-size="11" fill="#e1e4e8">{count}</text>'
         )
     lines.append("</svg>")
     return "\n".join(lines)
