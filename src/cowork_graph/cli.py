@@ -48,7 +48,7 @@ def _print_help() -> None:
         "  build                      Walk the cowork corpus and write the SQLite graph DB.\n"
         "  update --since <git-ref>   Incrementally re-parse files changed since <git-ref>.\n"
         "  reindex                    Full rebuild (alias for build; used by the git hook on merges).\n"
-        "  audit [--write]            Run ten drift-detection checks; --write saves a report.\n"
+        "  audit [--write] [--html]   Run ten drift-detection checks; --write saves markdown, --html saves HTML.\n"
         "  mcp serve                  Start the MCP server over stdio.\n"
         "  mcp install                Register with MCP clients (default: --all).\n"
         "  help                       Show this message.\n"
@@ -65,6 +65,7 @@ def _print_help() -> None:
 def _cmd_mcp(args: list[str]) -> int:
     if not args or args[0] == "serve":
         from cowork_graph.mcp_server import main as mcp_main
+
         mcp_main()
         return 0
     if args[0] == "install":
@@ -144,9 +145,7 @@ def _cmd_build(_args: list[str]) -> int:
         n_docs += 1
         text = abs_path.read_text(encoding="utf-8")
         try:
-            last_mod = datetime.fromtimestamp(
-                abs_path.stat().st_mtime, tz=timezone.utc
-            ).isoformat()
+            last_mod = datetime.fromtimestamp(abs_path.stat().st_mtime, tz=timezone.utc).isoformat()
         except OSError:
             last_mod = None
 
@@ -193,9 +192,11 @@ def _cmd_build(_args: list[str]) -> int:
         winning_entity = max(votes, key=lambda e: votes[e])
         db.upsert_edge(
             conn,
-            source_type="project", source_id=slug,
+            source_type="project",
+            source_id=slug,
             edge_type="MEMBER_OF_ENTITY",
-            target_type="entity", target_id=winning_entity,
+            target_type="entity",
+            target_id=winning_entity,
         )
     conn.execute("COMMIT")
 
@@ -214,10 +215,7 @@ def _cmd_build(_args: list[str]) -> int:
     conn.close()
 
     duration = time.monotonic() - t0
-    print(
-        f"{n_docs} docs, {n_failed} failed, {n_broken_links} broken links, "
-        f"{duration:.1f}s"
-    )
+    print(f"{n_docs} docs, {n_failed} failed, {n_broken_links} broken links, {duration:.1f}s")
 
     fail_pct = (n_failed / n_docs * 100) if n_docs else 0
     if fail_pct > cfg.parser.fail_threshold_pct:
@@ -232,26 +230,37 @@ def _cmd_build(_args: list[str]) -> int:
 
 def _cmd_audit(args: list[str]) -> int:
     import json
+    from datetime import datetime, timezone
     from cowork_graph import audit as audit_mod
 
     write = "--write" in args
+    html_flag = "--html" in args
     cfg = cfg_mod.load()
 
     if not cfg.db_path.exists():
         print("Error: graph DB not found. Run 'cowork-graph build' first.", file=sys.stderr)
         return 1
 
-    report_dir = cfg.cowork_root / "claude-environment/cowork-graph/audits" if write else None
+    audits_dir = cfg.cowork_root / "claude-environment/cowork-graph/audits"
     conn = db.connect(cfg.db_path)
     try:
         result = audit_mod.run_audit(
             conn,
             write_report=write,
-            report_dir=report_dir,
+            report_dir=audits_dir if write else None,
             suppressions_path=cfg.suppressions_path,
         )
     finally:
         conn.close()
+
+    if html_flag:
+        from cowork_graph.audit_html import write_html_report
+
+        audits_dir.mkdir(parents=True, exist_ok=True)
+        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        html_path = audits_dir / f"{date_str}-audit.html"
+        write_html_report(result, cfg.db_path, html_path, cowork_root=cfg.cowork_root)
+        print(f"HTML report written: {html_path}")
 
     output: dict = {
         "total_findings": result["total_findings"],
@@ -301,9 +310,11 @@ def _write_doc_to_db(
         db.upsert_tag(conn, tag=tag)
         db.upsert_edge(
             conn,
-            source_type="doc", source_id=rel_path,
+            source_type="doc",
+            source_id=rel_path,
             edge_type="TAGGED",
-            target_type="tag", target_id=tag,
+            target_type="tag",
+            target_id=tag,
         )
 
     for slug in result.project_slugs:
@@ -313,9 +324,11 @@ def _write_doc_to_db(
         )
         db.upsert_edge(
             conn,
-            source_type="doc", source_id=rel_path,
+            source_type="doc",
+            source_id=rel_path,
             edge_type="MEMBER_OF_PROJECT",
-            target_type="project", target_id=slug,
+            target_type="project",
+            target_id=slug,
         )
         if votes_acc is not None and result.entity:
             votes = votes_acc.setdefault(slug, {})
@@ -324,9 +337,11 @@ def _write_doc_to_db(
     if result.entity:
         db.upsert_edge(
             conn,
-            source_type="doc", source_id=rel_path,
+            source_type="doc",
+            source_id=rel_path,
             edge_type="MEMBER_OF_ENTITY",
-            target_type="entity", target_id=result.entity,
+            target_type="entity",
+            target_id=result.entity,
         )
 
     for block in result.related_blocks:
@@ -335,9 +350,11 @@ def _write_doc_to_db(
             # targets are root-relative normalized paths (normpath applied in parser.py)
             db.upsert_edge(
                 conn,
-                source_type="doc", source_id=rel_path,
+                source_type="doc",
+                source_id=rel_path,
                 edge_type=edge_type,
-                target_type="doc", target_id=target,
+                target_type="doc",
+                target_id=target,
                 edge_subtype=edge_subtype,
             )
 
@@ -356,17 +373,21 @@ def _write_doc_to_db(
         else:
             db.upsert_edge(
                 conn,
-                source_type="doc", source_id=rel_path,
+                source_type="doc",
+                source_id=rel_path,
                 edge_type="LINKS_TO",
-                target_type="doc", target_id=link.resolved or link.raw_target,
+                target_type="doc",
+                target_id=link.resolved or link.raw_target,
             )
 
     for mention in result.mentions:
         db.upsert_edge(
             conn,
-            source_type="doc", source_id=rel_path,
+            source_type="doc",
+            source_id=rel_path,
             edge_type="MENTIONS",
-            target_type="person", target_id=mention.person_slug,
+            target_type="person",
+            target_id=mention.person_slug,
             confidence="high",
             context=mention.context[:120],
         )
@@ -400,9 +421,11 @@ def _write_doc_to_db(
             for link in decision.about_links:
                 db.upsert_edge(
                     conn,
-                    source_type="decision", source_id=decision.id,
+                    source_type="decision",
+                    source_id=decision.id,
                     edge_type="ABOUT_DECISION",
-                    target_type="doc", target_id=link.resolved,
+                    target_type="doc",
+                    target_id=link.resolved,
                 )
 
     return n_broken
@@ -440,9 +463,7 @@ def _cmd_update(args: list[str]) -> int:
 
     persons: dict[str, str] = {
         row["slug"]: row["display_name"]
-        for row in conn.execute(
-            "SELECT slug, display_name FROM person WHERE is_ghost=0"
-        ).fetchall()
+        for row in conn.execute("SELECT slug, display_name FROM person WHERE is_ghost=0").fetchall()
     }
 
     try:
