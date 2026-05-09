@@ -274,8 +274,8 @@ class TestCliIntegration:
         content = html_path.read_text()
         assert "<h1>cowork-graph audit</h1>" in content
 
-    def test_write_only_produces_no_html(self, tmp_path: Path) -> None:
-        """--write without --html must not create an HTML file (regression guard)."""
+    def test_write_produces_both_files(self, tmp_path: Path) -> None:
+        """--write now produces both markdown and HTML by default."""
         from datetime import datetime, timezone
 
         import cowork_graph.config as cfg_mod
@@ -302,7 +302,40 @@ class TestCliIntegration:
             cfg_mod.load = original_load
 
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        html_path = (
-            audit_root / "claude-environment" / "cowork-graph" / "audits" / f"{date_str}-audit.html"
+        audits = audit_root / "claude-environment" / "cowork-graph" / "audits"
+        assert (audits / f"{date_str}-audit.md").exists(), "markdown must be written"
+        assert (audits / f"{date_str}-audit.html").exists(), "HTML must be written by default"
+
+    def test_write_no_html_produces_markdown_only(self, tmp_path: Path) -> None:
+        """--write --no-html writes only the markdown file."""
+        from datetime import datetime, timezone
+
+        import cowork_graph.config as cfg_mod
+        from cowork_graph.cli import _cmd_audit, _cmd_build
+
+        CORPUS = Path(__file__).parent / "fixtures" / "corpus"
+        db_path = tmp_path / "graph.db"
+        audit_root = tmp_path / "audit-root3"
+
+        original_load = cfg_mod.load
+        _roots = iter([CORPUS, audit_root])
+
+        def patched_load(config_path=None):  # type: ignore[override]
+            cfg = original_load(config_path=tmp_path / "config.toml")
+            cfg.cowork_root = next(_roots)
+            cfg.db_path = db_path
+            return cfg
+
+        cfg_mod.load = patched_load
+        try:
+            assert _cmd_build([]) == 0
+            assert _cmd_audit(["--write", "--no-html"]) == 0
+        finally:
+            cfg_mod.load = original_load
+
+        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        audits = audit_root / "claude-environment" / "cowork-graph" / "audits"
+        assert (audits / f"{date_str}-audit.md").exists(), "markdown must be written"
+        assert not (audits / f"{date_str}-audit.html").exists(), (
+            "HTML must be suppressed by --no-html"
         )
-        assert not html_path.exists(), "HTML file must not be created without --html"

@@ -69,6 +69,10 @@ a { color: #58a6ff; } a:visited { color: #a371f7; }
   font-size: 0.78rem; font-family: 'SF Mono', Menlo, Consolas, monospace;
   color: white; font-weight: 600; text-decoration: none;
 }
+.count-pill:link,
+.count-pill:visited,
+.count-pill:hover,
+.count-pill:active { color: white; }
 .pill-high { background: #f85149; } .pill-medium { background: #e3b341; }
 .pill-low  { background: #d29922; } .pill-info   { background: #8b949e; }
 .pill-ok   { background: #3fb950; }

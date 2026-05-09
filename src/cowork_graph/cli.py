@@ -48,7 +48,11 @@ def _print_help() -> None:
         "  build                      Walk the cowork corpus and write the SQLite graph DB.\n"
         "  update --since <git-ref>   Incrementally re-parse files changed since <git-ref>.\n"
         "  reindex                    Full rebuild (alias for build; used by the git hook on merges).\n"
-        "  audit [--write] [--html]   Run ten drift-detection checks; --write saves markdown, --html saves HTML.\n"
+        "  audit [--write] [--html] [--no-html]\n"
+        "                             Run ten drift-detection checks.\n"
+        "                             --write: write report files to audits/ (markdown + HTML by default)\n"
+        "                             --no-html: with --write, suppress HTML output (markdown only)\n"
+        "                             --html: write HTML only (no markdown)\n"
         "  mcp serve                  Start the MCP server over stdio.\n"
         "  mcp install                Register with MCP clients (default: --all).\n"
         "  help                       Show this message.\n"
@@ -234,7 +238,10 @@ def _cmd_audit(args: list[str]) -> int:
     from cowork_graph import audit as audit_mod
 
     write = "--write" in args
+    no_html = "--no-html" in args
     html_flag = "--html" in args
+    # --write alone now produces both markdown and HTML; --no-html opts out of HTML
+    write_html = (write and not no_html) or html_flag
     cfg = cfg_mod.load()
 
     if not cfg.db_path.exists():
@@ -253,7 +260,7 @@ def _cmd_audit(args: list[str]) -> int:
     finally:
         conn.close()
 
-    if html_flag:
+    if write_html:
         from cowork_graph.audit_html import write_html_report
 
         audits_dir.mkdir(parents=True, exist_ok=True)
