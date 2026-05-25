@@ -8,6 +8,11 @@
 # Appends to an existing hook (e.g. git-lfs) rather than overwriting it.
 # The hook calls `cowork-graph update --since HEAD~1` after every commit;
 # merge commits trigger a full rebuild (handled inside the CLI).
+#
+# Cross-surface: the cowork repo is committed from both WSL git and Windows
+# git. A WSL commit runs the venv CLI directly. A Windows commit runs its
+# hook under Git-for-Windows' MSYS sh, where /home/joe/... does not resolve
+# to the WSL filesystem — so that case routes the call through wsl.exe.
 
 set -e
 
@@ -20,13 +25,11 @@ if [ ! -d "$COWORK_DIR/.git" ]; then
     exit 1
 fi
 
-# Resolve CLI: prefer PATH, fall back to project venv
-if command -v cowork-graph >/dev/null 2>&1; then
-    CLI="cowork-graph"
-elif [ -x "$REPO_DIR/.venv/bin/cowork-graph" ]; then
-    CLI="$REPO_DIR/.venv/bin/cowork-graph"
-else
-    echo "Error: cowork-graph not found. Run 'uv sync' in $REPO_DIR first." >&2
+# The hook always invokes the project-venv CLI by its absolute WSL path. That
+# path works from a WSL commit (run directly) and from a Windows commit (run
+# via wsl.exe), so confirm it exists before installing.
+if [ ! -x "$REPO_DIR/.venv/bin/cowork-graph" ]; then
+    echo "Error: $REPO_DIR/.venv/bin/cowork-graph not found. Run 'uv sync' in $REPO_DIR first." >&2
     exit 1
 fi
 
@@ -45,7 +48,13 @@ fi
 # Append (preserves any existing hook content, e.g. git-lfs)
 cat >> "$HOOK_PATH" <<HOOK
 # cowork-graph sync — installed by $REPO_DIR/scripts/install-hook.sh
-$CLI update --since HEAD~1 &
+# Cross-surface: a WSL commit runs the CLI directly; a Windows commit routes via wsl.exe.
+CG_BIN="$REPO_DIR/.venv/bin/cowork-graph"
+if [ -x "\$CG_BIN" ]; then
+  "\$CG_BIN" update --since HEAD~1 &
+elif command -v wsl.exe >/dev/null 2>&1; then
+  MSYS_NO_PATHCONV=1 wsl.exe bash -lc "\$CG_BIN update --since HEAD~1" &
+fi
 HOOK
 
-echo "Hook installed: $HOOK_PATH (CLI: $CLI)"
+echo "Hook installed: $HOOK_PATH"
