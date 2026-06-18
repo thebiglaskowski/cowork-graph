@@ -1,4 +1,4 @@
-"""FastMCP server — eight tools, stdio transport only."""
+"""FastMCP server — eight tools over stdio (default) or a shared HTTP server."""
 
 from __future__ import annotations
 
@@ -100,7 +100,9 @@ def decisions(
 def audit(write_report: bool = False) -> dict:
     """Run all ten drift-detection checks against the corpus, optionally writing a markdown report to the audits folder. Use after bulk corpus edits to verify health, when investigating whether something has drifted from convention, before a release or major reorganization, or as part of weekly maintenance. Findings include broken links, ghost projects, orphan docs, format drift, decision drift, tag drift, and more."""
     cfg = cfg_mod.load()
-    report_dir = cfg.cowork_root / "claude-environment/cowork-graph/audits" if write_report else None
+    report_dir = (
+        cfg.cowork_root / "claude-environment/cowork-graph/audits" if write_report else None
+    )
     conn = _conn()
     try:
         return queries.audit(
@@ -113,5 +115,20 @@ def audit(write_report: bool = False) -> dict:
         conn.close()
 
 
-def main() -> None:
-    mcp.run()
+def main(
+    transport: str = "stdio",
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    path: str = "/mcp",
+) -> None:
+    """Run the MCP server.
+
+    Default ``stdio`` — one process per client, spawned by the MCP client.
+    Pass ``transport="http"`` to run a single shared server that multiple
+    clients connect to over HTTP, avoiding a per-client process spawn (and the
+    startup contention that causes).
+    """
+    if transport == "http":
+        mcp.run(transport="http", host=host, port=port, path=path)
+    else:
+        mcp.run()

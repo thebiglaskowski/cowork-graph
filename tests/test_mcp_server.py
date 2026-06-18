@@ -28,6 +28,7 @@ def mcp_app(tmp_path_factory):
     db_path = tmp_path / "graph.db"
 
     import cowork_graph.config as cfg_mod
+
     original_load = cfg_mod.load
 
     def patched_load(config_path=None):
@@ -41,6 +42,7 @@ def mcp_app(tmp_path_factory):
         exit_code = _cmd_build([])
         assert exit_code == 0
         from cowork_graph.mcp_server import mcp
+
         yield mcp
     finally:
         cfg_mod.load = original_load
@@ -81,9 +83,7 @@ class TestSearchDocs:
 
         async def check():
             async with Client(mcp_app) as client:
-                result = await client.call_tool(
-                    "search_docs", {"query": "xyzzy_nonexistent_42"}
-                )
+                result = await client.call_tool("search_docs", {"query": "xyzzy_nonexistent_42"})
                 return result.data
 
         data = _run(check())
@@ -150,9 +150,7 @@ class TestProjectState:
 
         async def check():
             async with Client(mcp_app) as client:
-                result = await client.call_tool(
-                    "project_state", {"slug": "skunkworks"}
-                )
+                result = await client.call_tool("project_state", {"slug": "skunkworks"})
                 return result.data
 
         data = _run(check())
@@ -163,9 +161,7 @@ class TestProjectState:
 
         async def check():
             async with Client(mcp_app) as client:
-                result = await client.call_tool(
-                    "project_state", {"slug": "nonexistent-zzz"}
-                )
+                result = await client.call_tool("project_state", {"slug": "nonexistent-zzz"})
                 return result.data
 
         data = _run(check())
@@ -224,3 +220,56 @@ class TestAudit:
         assert data["status"] == "ok"
         assert "total_findings" in data
         assert "findings" in data
+
+
+class TestServeCLI:
+    """`mcp serve` arg parsing — patch the server main so no real server starts."""
+
+    @staticmethod
+    def _capture(monkeypatch):
+        import cowork_graph.mcp_server as srv
+
+        captured: dict = {}
+        monkeypatch.setattr(srv, "main", lambda **kw: captured.update(kw))
+        return captured
+
+    def test_stdio_is_default(self, monkeypatch):
+        from cowork_graph import cli
+
+        captured = self._capture(monkeypatch)
+        assert cli._cmd_mcp(["serve"]) == 0
+        assert captured == {}  # stdio path calls main() with no kwargs
+
+    def test_bare_mcp_defaults_to_stdio(self, monkeypatch):
+        from cowork_graph import cli
+
+        captured = self._capture(monkeypatch)
+        assert cli._cmd_mcp([]) == 0
+        assert captured == {}
+
+    def test_http_uses_defaults(self, monkeypatch):
+        from cowork_graph import cli
+
+        captured = self._capture(monkeypatch)
+        assert cli._cmd_mcp(["serve", "--http"]) == 0
+        assert captured == {
+            "transport": "http",
+            "host": "127.0.0.1",
+            "port": 8765,
+            "path": "/mcp",
+        }
+
+    def test_http_parses_host_port_path(self, monkeypatch):
+        from cowork_graph import cli
+
+        captured = self._capture(monkeypatch)
+        rc = cli._cmd_mcp(
+            ["serve", "--http", "--host", "0.0.0.0", "--port", "9999", "--path", "/x"]
+        )
+        assert rc == 0
+        assert captured == {
+            "transport": "http",
+            "host": "0.0.0.0",
+            "port": 9999,
+            "path": "/x",
+        }
