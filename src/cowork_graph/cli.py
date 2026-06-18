@@ -53,7 +53,9 @@ def _print_help() -> None:
         "                             --write: write report files to audits/ (markdown + HTML by default)\n"
         "                             --no-html: with --write, suppress HTML output (markdown only)\n"
         "                             --html: write HTML only (no markdown)\n"
-        "  mcp serve                  Start the MCP server over stdio.\n"
+        "  mcp serve [--http]         Start the MCP server. Default: stdio (one process per client).\n"
+        "                             --http [--host H] [--port P] [--path P]: one shared HTTP server\n"
+        "                             (default http://127.0.0.1:8765/mcp) that many clients connect to.\n"
         "  mcp install                Register with MCP clients (default: --all).\n"
         "  help                       Show this message.\n"
         "\n"
@@ -68,14 +70,37 @@ def _print_help() -> None:
 
 def _cmd_mcp(args: list[str]) -> int:
     if not args or args[0] == "serve":
-        from cowork_graph.mcp_server import main as mcp_main
-
-        mcp_main()
-        return 0
+        return _cmd_mcp_serve(args[1:] if args else [])
     if args[0] == "install":
         return _cmd_mcp_install(args[1:])
     print(f"Unknown mcp subcommand: {args[0]}. Use 'serve' or 'install'.", file=sys.stderr)
     return 1
+
+
+def _cmd_mcp_serve(args: list[str]) -> int:
+    from cowork_graph.mcp_server import main as mcp_main
+
+    if "--http" in args:
+        host = _flag_value(args, "--host", "127.0.0.1")
+        port = int(_flag_value(args, "--port", "8765"))
+        path = _flag_value(args, "--path", "/mcp")
+        print(
+            f"cowork-graph MCP server (http) at http://{host}:{port}{path}",
+            file=sys.stderr,
+        )
+        mcp_main(transport="http", host=host, port=port, path=path)
+    else:
+        mcp_main()
+    return 0
+
+
+def _flag_value(args: list[str], flag: str, default: str) -> str:
+    """Return the value following ``flag`` in ``args``, or ``default``."""
+    if flag in args:
+        idx = args.index(flag)
+        if idx + 1 < len(args):
+            return args[idx + 1]
+    return default
 
 
 def _cmd_mcp_install(args: list[str]) -> int:

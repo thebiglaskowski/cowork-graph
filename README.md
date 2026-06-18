@@ -20,7 +20,7 @@ Local SQLite knowledge graph over the entire [`cowork/`](https://github.com/theb
 
 All five build phases shipped (2026-05-05 – 2026-05-06). Now in Phase 6: passive trust window — in-flight fixes as edge cases surface, no planned new phases until nexus-ledger Phase 3 ships.
 
-- 282 tests, 0 failures
+- 343 tests, 0 failures
 - 216 docs parsed from real corpus, 0 parse failures
 - Incremental update: ~0.4s for a 2-file commit vs ~24s full rebuild
 - Post-commit hook live in `cowork/.git/hooks/post-commit`
@@ -52,8 +52,11 @@ uv run cowork-graph reindex
 # Ten drift-detection checks; --write saves a markdown report to cowork audits dir
 uv run cowork-graph audit [--write]
 
-# MCP server over stdio
+# MCP server over stdio (default — each client spawns its own process)
 uv run cowork-graph mcp serve
+
+# MCP server as a single shared HTTP server (many clients connect remotely)
+uv run cowork-graph mcp serve --http [--host 127.0.0.1] [--port 8765] [--path /mcp]
 
 # Register with MCP clients (Claude Desktop, Claude Code WSL, Claude Code PowerShell)
 uv run cowork-graph mcp install [--desktop] [--code-wsl] [--code-ps] [--all]
@@ -92,6 +95,45 @@ Eight tools exposed to Claude via the MCP server:
 | `who` | Person lookup by name or alias |
 | `decisions` | Decision log entries with optional date/status filter |
 | `audit` | Run all ten drift checks; optional `write_report` flag |
+
+## Shared HTTP server
+
+By default each MCP client spawns its **own** `cowork-graph mcp serve` process over stdio. When several clients run at once (Claude Code, OpenCode, Hermes), those per-client stdio spawns can contend on startup — a slow/blocked spawn can hang the client's MCP init. To avoid that, run **one** shared server over HTTP and have every client connect to it remotely:
+
+```bash
+cowork-graph mcp serve --http            # serves http://127.0.0.1:8765/mcp
+```
+
+Point any MCP client at the URL via a remote/HTTP transport. Example for OpenCode (`~/.config/opencode/opencode.json`):
+
+```json
+"mcp": {
+  "cowork-graph": { "type": "remote", "url": "http://127.0.0.1:8765/mcp", "enabled": true }
+}
+```
+
+Keep it running as a systemd **user** service:
+
+```ini
+# ~/.config/systemd/user/cowork-graph-mcp.service
+[Unit]
+Description=cowork-graph MCP server (shared HTTP)
+After=network.target
+
+[Service]
+ExecStart=%h/.local/bin/uv run --directory %h/github/cowork-graph --group mcp cowork-graph mcp serve --http
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+```bash
+systemctl --user enable --now cowork-graph-mcp
+loginctl enable-linger "$USER"           # survive logout/reboot
+```
+
+`stdio` remains the default transport; `--http` is purely additive, so existing stdio installs (`mcp install`) are unaffected.
 
 ## Audit checks
 
