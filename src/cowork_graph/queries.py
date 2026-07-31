@@ -80,6 +80,7 @@ class PersonProfile:
     role: str | None
     source_doc: str | None
     mentions: list[DocSummary]
+    mentions_total: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -188,17 +189,9 @@ def get_doc(conn: sqlite3.Connection, path: str) -> DocDetail | None:
     )
 
 
-def list_active(
-    conn: sqlite3.Connection,
-    *,
-    scope: str | None = None,
-    project: str | None = None,
-) -> list[DocSummary]:
-    """All active docs, optionally narrowed by entity scope or project slug."""
-    sql = (
-        "SELECT path, title, status, doc_type, last_modified"
-        " FROM doc WHERE status='active'"
-    )
+def _active_filter(scope: str | None, project: str | None) -> tuple[str, list]:
+    """WHERE clause + params shared by list_active and count_active."""
+    sql = " WHERE status='active'"
     params: list = []
 
     if scope:
@@ -213,8 +206,34 @@ def list_active(
             ")"
         )
         params.append(project)
+    return sql, params
 
+
+def count_active(
+    conn: sqlite3.Connection,
+    *,
+    scope: str | None = None,
+    project: str | None = None,
+) -> int:
+    """Number of active docs matching the same filters as list_active."""
+    where, params = _active_filter(scope, project)
+    return conn.execute(f"SELECT COUNT(*) FROM doc{where}", params).fetchone()[0]
+
+
+def list_active(
+    conn: sqlite3.Connection,
+    *,
+    scope: str | None = None,
+    project: str | None = None,
+    limit: int | None = None,
+) -> list[DocSummary]:
+    """Active docs, newest-first, optionally narrowed by entity scope or project slug."""
+    where, params = _active_filter(scope, project)
+    sql = f"SELECT path, title, status, doc_type, last_modified FROM doc{where}"
     sql += " ORDER BY last_modified DESC"
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(max(0, limit))
     rows = conn.execute(sql, params).fetchall()
     return [
         DocSummary(
@@ -228,11 +247,19 @@ def list_active(
     ]
 
 
-def list_blocked(conn: sqlite3.Connection) -> list[BlockedDoc]:
-    """All blocked docs with upstream blockers resolved via BLOCKS edges."""
-    blocked_rows = conn.execute(
-        "SELECT path, title FROM doc WHERE status='blocked'"
-    ).fetchall()
+def count_blocked(conn: sqlite3.Connection) -> int:
+    """Number of blocked docs."""
+    return conn.execute("SELECT COUNT(*) FROM doc WHERE status='blocked'").fetchone()[0]
+
+
+def list_blocked(conn: sqlite3.Connection, *, limit: int | None = None) -> list[BlockedDoc]:
+    """Blocked docs, newest-first, with upstream blockers resolved via BLOCKS edges."""
+    sql = "SELECT path, title FROM doc WHERE status='blocked' ORDER BY last_modified DESC"
+    params: list = []
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(max(0, limit))
+    blocked_rows = conn.execute(sql, params).fetchall()
 
     result = []
     for row in blocked_rows:
@@ -346,8 +373,13 @@ def project_state(conn: sqlite3.Connection, slug: str) -> ProjectState | None:
     )
 
 
-def who(conn: sqlite3.Connection, name: str) -> PersonProfile | None:
-    """Person node plus every doc that mentions them. v1: full canonical name only."""
+def who(
+    conn: sqlite3.Connection,
+    name: str,
+    *,
+    mentions_limit: int | None = None,
+) -> PersonProfile | None:
+    """Person node plus docs that mention them, newest-first. v1: full canonical name only."""
     row = conn.execute(
         "SELECT slug, display_name, role, source_doc FROM person"
         " WHERE display_name = ? COLLATE NOCASE",
@@ -357,13 +389,25 @@ def who(conn: sqlite3.Connection, name: str) -> PersonProfile | None:
         return None
 
     slug = row["slug"]
-    mention_rows = conn.execute(
+    mentions_total = conn.execute(
+        "SELECT COUNT(*) FROM edge e"
+        " WHERE e.source_type='doc' AND e.edge_type='MENTIONS'"
+        " AND e.target_type='person' AND e.target_id=?",
+        (slug,),
+    ).fetchone()[0]
+
+    sql = (
         "SELECT d.path, d.title, d.status, d.doc_type, d.last_modified"
         " FROM doc d"
         " JOIN edge e ON e.source_type='doc' AND e.source_id=d.path"
-        " AND e.edge_type='MENTIONS' AND e.target_type='person' AND e.target_id=?",
-        (slug,),
-    ).fetchall()
+        " AND e.edge_type='MENTIONS' AND e.target_type='person' AND e.target_id=?"
+        " ORDER BY d.last_modified DESC"
+    )
+    params: list = [slug]
+    if mentions_limit is not None:
+        sql += " LIMIT ?"
+        params.append(max(0, mentions_limit))
+    mention_rows = conn.execute(sql, params).fetchall()
     mentions = [
         DocSummary(
             path=r["path"],
@@ -381,21 +425,13 @@ def who(conn: sqlite3.Connection, name: str) -> PersonProfile | None:
         role=row["role"],
         source_doc=row["source_doc"],
         mentions=mentions,
+        mentions_total=mentions_total,
     )
 
 
-def decisions(
-    conn: sqlite3.Connection,
-    *,
-    topic: str | None = None,
-    since: str | None = None,
-) -> list[DecisionEntry]:
-    """Recent decisions, optionally filtered by date and topic keyword."""
-    sql = (
-        "SELECT id, date, title, decision_text, why, alternatives,"
-        " principle, source_context, status"
-        " FROM decision WHERE 1=1"
-    )
+def _decisions_filter(topic: str | None, since: str | None) -> tuple[str, list]:
+    """WHERE clause + params shared by decisions and count_decisions."""
+    sql = " WHERE 1=1"
     params: list = []
 
     if since:
@@ -404,8 +440,37 @@ def decisions(
     if topic:
         sql += " AND (title LIKE ? OR decision_text LIKE ?)"
         params.extend([f"%{topic}%", f"%{topic}%"])
+    return sql, params
 
-    sql += " ORDER BY date DESC"
+
+def count_decisions(
+    conn: sqlite3.Connection,
+    *,
+    topic: str | None = None,
+    since: str | None = None,
+) -> int:
+    """Number of decisions matching the same filters as decisions()."""
+    where, params = _decisions_filter(topic, since)
+    return conn.execute(f"SELECT COUNT(*) FROM decision{where}", params).fetchone()[0]
+
+
+def decisions(
+    conn: sqlite3.Connection,
+    *,
+    topic: str | None = None,
+    since: str | None = None,
+    limit: int | None = None,
+) -> list[DecisionEntry]:
+    """Recent decisions, newest-first, optionally filtered by date and topic keyword."""
+    where, params = _decisions_filter(topic, since)
+    sql = (
+        "SELECT id, date, title, decision_text, why, alternatives,"
+        f" principle, source_context, status FROM decision{where}"
+        " ORDER BY date DESC"
+    )
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(max(0, limit))
     rows = conn.execute(sql, params).fetchall()
     return [_decision_entry(conn, r) for r in rows]
 

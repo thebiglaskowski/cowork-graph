@@ -7,6 +7,9 @@ from cowork_graph import db
 from cowork_graph.cli import _cmd_build
 from cowork_graph.queries import (
     audit,
+    count_active,
+    count_blocked,
+    count_decisions,
     decisions,
     get_doc,
     list_active,
@@ -234,3 +237,57 @@ class TestAudit:
         result = audit(graph_db)
         assert result["status"] == "ok"
         assert result["total_findings"] >= 0
+
+
+class TestLimitsAndCounts:
+    """limit params cap result size; count_* report the unfiltered total."""
+
+    def test_count_active_matches_unlimited_list(self, graph_db):
+        assert count_active(graph_db) == len(list_active(graph_db))
+
+    def test_count_active_respects_filters(self, graph_db):
+        n = count_active(graph_db, scope="autoscriptstudio")
+        assert n == len(list_active(graph_db, scope="autoscriptstudio"))
+        assert n < count_active(graph_db)
+
+    def test_list_active_limit_caps_results(self, graph_db):
+        assert count_active(graph_db) > 1  # limit must actually bite
+        docs = list_active(graph_db, limit=1)
+        assert len(docs) == 1
+
+    def test_list_active_limit_keeps_newest_first(self, graph_db):
+        all_docs = list_active(graph_db)
+        limited = list_active(graph_db, limit=2)
+        assert [d.path for d in limited] == [d.path for d in all_docs[:2]]
+        stamps = [d.last_modified for d in all_docs if d.last_modified]
+        assert stamps == sorted(stamps, reverse=True)
+
+    def test_negative_limit_returns_empty(self, graph_db):
+        assert list_active(graph_db, limit=-5) == []
+
+    def test_count_blocked_matches_list(self, graph_db):
+        assert count_blocked(graph_db) == len(list_blocked(graph_db))
+
+    def test_list_blocked_accepts_limit(self, graph_db):
+        assert len(list_blocked(graph_db, limit=1)) <= 1
+
+    def test_count_decisions_matches_unlimited_list(self, graph_db):
+        assert count_decisions(graph_db) == len(decisions(graph_db))
+
+    def test_count_decisions_respects_filters(self, graph_db):
+        n = count_decisions(graph_db, topic="SQLite")
+        assert n == len(decisions(graph_db, topic="SQLite"))
+        assert count_decisions(graph_db, since="2099-01-01") == 0
+
+    def test_decisions_limit_caps_results(self, graph_db):
+        assert len(decisions(graph_db, limit=1)) == 1
+
+    def test_who_mentions_total_matches_unlimited(self, graph_db):
+        profile = who(graph_db, "Jane Doe")
+        assert profile.mentions_total == len(profile.mentions)
+
+    def test_who_mentions_limit_caps_but_total_stays_full(self, graph_db):
+        full = who(graph_db, "Jane Doe")
+        limited = who(graph_db, "Jane Doe", mentions_limit=0)
+        assert limited.mentions == []
+        assert limited.mentions_total == full.mentions_total > 0

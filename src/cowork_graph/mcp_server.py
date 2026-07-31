@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from fastmcp import FastMCP
 
 from cowork_graph import config as cfg_mod
@@ -13,6 +15,19 @@ mcp = FastMCP("cowork-graph")
 def _conn():
     cfg = cfg_mod.load()
     return db.connect(cfg.db_path)
+
+
+def _bounded(items: list, total: int, hint: str) -> dict:
+    """Wrap a limited result list in the {items, total, note?} envelope.
+
+    Item dicts keep the exact query-layer shape; the envelope exists so a
+    truncated response says it was truncated instead of silently looking
+    complete — an unbounded list_active response has hit 55k+ characters.
+    """
+    resp: dict = {"items": [asdict(i) for i in items], "total": total}
+    if total > len(items):
+        resp["note"] = f"...and {total - len(items)} more; {hint}"
+    return resp
 
 
 @mcp.tool
@@ -44,23 +59,33 @@ def get_doc(path: str) -> queries.DocDetail | None:
 def list_active(
     scope: str | None = None,
     project: str | None = None,
-) -> list[queries.DocSummary]:
-    """List every doc with status/active across the corpus, optionally filtered by entity scope (autoscriptstudio, personal, nexus-legacy-holdings) or project slug. Use when surveying current work, generating a status summary, or planning a work session by seeing what's in flight."""
+    limit: int = 50,
+    count_only: bool = False,
+) -> dict:
+    """List docs with status/active across the corpus, newest-first by last_modified, optionally filtered by entity scope (autoscriptstudio, personal, nexus-legacy-holdings) or project slug. Use when surveying current work, generating a status summary, or planning a work session by seeing what's in flight. Returns {items, total} plus a note when truncated at `limit` (default 50); pass count_only=true for just the total."""
     conn = _conn()
     try:
-        return queries.list_active(conn, scope=scope, project=project)
+        total = queries.count_active(conn, scope=scope, project=project)
+        if count_only:
+            return {"items": [], "total": total}
+        items = queries.list_active(conn, scope=scope, project=project, limit=limit)
     finally:
         conn.close()
+    return _bounded(items, total, "raise limit or narrow by scope/project")
 
 
 @mcp.tool
-def list_blocked() -> list[queries.BlockedDoc]:
-    """List every doc with status/blocked, with the upstream blocker resolved via BLOCKS edges. Use when investigating what's stuck and why, generating a blockers list, or before making decisions that depend on currently-blocked work clearing."""
+def list_blocked(limit: int = 50, count_only: bool = False) -> dict:
+    """List docs with status/blocked, newest-first, with the upstream blocker resolved via BLOCKS edges. Use when investigating what's stuck and why, generating a blockers list, or before making decisions that depend on currently-blocked work clearing. Returns {items, total} plus a note when truncated at `limit` (default 50); pass count_only=true for just the total."""
     conn = _conn()
     try:
-        return queries.list_blocked(conn)
+        total = queries.count_blocked(conn)
+        if count_only:
+            return {"items": [], "total": total}
+        items = queries.list_blocked(conn, limit=limit)
     finally:
         conn.close()
+    return _bounded(items, total, "raise limit")
 
 
 @mcp.tool
@@ -74,26 +99,41 @@ def project_state(slug: str) -> queries.ProjectState | None:
 
 
 @mcp.tool
-def who(name: str) -> queries.PersonProfile | None:
-    """Person profile: canonical info plus every doc that mentions them. Use when looking up someone's role and context, finding all places they're referenced, or pulling background on a person before a meeting or message."""
+def who(name: str, mentions_limit: int = 50) -> dict | None:
+    """Person profile: canonical info plus docs that mention them, newest-first. Use when looking up someone's role and context, finding all places they're referenced, or pulling background on a person before a meeting or message. `mentions` is truncated at `mentions_limit` (default 50) with `mentions_total` always the full count and a note when truncated."""
     conn = _conn()
     try:
-        return queries.who(conn, name)
+        profile = queries.who(conn, name, mentions_limit=mentions_limit)
     finally:
         conn.close()
+    if profile is None:
+        return None
+    resp = asdict(profile)
+    if profile.mentions_total > len(profile.mentions):
+        resp["note"] = (
+            f"...and {profile.mentions_total - len(profile.mentions)} more mentions;"
+            " raise mentions_limit"
+        )
+    return resp
 
 
 @mcp.tool
 def decisions(
     topic: str | None = None,
     since: str | None = None,
-) -> list[queries.DecisionEntry]:
-    """Recent decisions from memory/decisions-log.md, optionally topic-filtered or since a date, with SUPERSEDES and ABOUT_DECISION edges resolved. Use when needing decision history, looking up the rationale behind a past choice, surveying strategic context, or checking whether something is governed by an existing decision."""
+    limit: int = 50,
+    count_only: bool = False,
+) -> dict:
+    """Recent decisions from memory/decisions-log.md, newest-first, optionally topic-filtered or since a date, with SUPERSEDES and ABOUT_DECISION edges resolved. Use when needing decision history, looking up the rationale behind a past choice, surveying strategic context, or checking whether something is governed by an existing decision. Returns {items, total} plus a note when truncated at `limit` (default 50); pass count_only=true for just the total."""
     conn = _conn()
     try:
-        return queries.decisions(conn, topic=topic, since=since)
+        total = queries.count_decisions(conn, topic=topic, since=since)
+        if count_only:
+            return {"items": [], "total": total}
+        items = queries.decisions(conn, topic=topic, since=since, limit=limit)
     finally:
         conn.close()
+    return _bounded(items, total, "raise limit or narrow by topic/since")
 
 
 @mcp.tool

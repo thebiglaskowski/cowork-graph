@@ -118,7 +118,7 @@ class TestGetDoc:
 
 
 class TestListActive:
-    def test_returns_nonempty_list(self, mcp_app):
+    def test_returns_nonempty_envelope(self, mcp_app):
         from fastmcp import Client
 
         async def check():
@@ -127,12 +127,51 @@ class TestListActive:
                 return result.data
 
         data = _run(check())
-        assert isinstance(data, list)
-        assert len(data) > 0
+        assert isinstance(data["items"], list)
+        assert len(data["items"]) > 0
+        assert data["total"] == len(data["items"])
+        assert "note" not in data
+
+    def test_items_keep_doc_summary_shape(self, mcp_app):
+        from fastmcp import Client
+
+        async def check():
+            async with Client(mcp_app) as client:
+                result = await client.call_tool("list_active", {})
+                return result.data
+
+        item = _run(check())["items"][0]
+        assert set(item) == {"path", "title", "status", "doc_type", "last_modified"}
+
+    def test_limit_truncates_with_note(self, mcp_app):
+        from fastmcp import Client
+
+        async def check():
+            async with Client(mcp_app) as client:
+                result = await client.call_tool("list_active", {"limit": 1})
+                return result.data
+
+        data = _run(check())
+        assert len(data["items"]) == 1
+        assert data["total"] > 1
+        assert f"...and {data['total'] - 1} more" in data["note"]
+        assert "raise limit" in data["note"]
+
+    def test_count_only_returns_no_items(self, mcp_app):
+        from fastmcp import Client
+
+        async def check():
+            async with Client(mcp_app) as client:
+                result = await client.call_tool("list_active", {"count_only": True})
+                return result.data
+
+        data = _run(check())
+        assert data["items"] == []
+        assert data["total"] > 0
 
 
 class TestListBlocked:
-    def test_returns_list(self, mcp_app):
+    def test_returns_envelope(self, mcp_app):
         from fastmcp import Client
 
         async def check():
@@ -141,7 +180,8 @@ class TestListBlocked:
                 return result.data
 
         data = _run(check())
-        assert isinstance(data, list)
+        assert isinstance(data["items"], list)
+        assert data["total"] == len(data["items"])
 
 
 class TestProjectState:
@@ -179,6 +219,23 @@ class TestWho:
 
         data = _run(check())
         assert data is not None
+        assert data["mentions_total"] == len(data["mentions"])
+        assert "note" not in data
+
+    def test_mentions_limit_truncates_with_note(self, mcp_app):
+        from fastmcp import Client
+
+        async def check():
+            async with Client(mcp_app) as client:
+                result = await client.call_tool(
+                    "who", {"name": "Jane Doe", "mentions_limit": 0}
+                )
+                return result.data
+
+        data = _run(check())
+        assert data["mentions"] == []
+        assert data["mentions_total"] > 0
+        assert "raise mentions_limit" in data["note"]
 
     def test_returns_none_for_unknown_person(self, mcp_app):
         from fastmcp import Client
@@ -193,7 +250,7 @@ class TestWho:
 
 
 class TestDecisions:
-    def test_returns_decisions(self, mcp_app):
+    def test_returns_decisions_envelope(self, mcp_app):
         from fastmcp import Client
 
         async def check():
@@ -202,8 +259,35 @@ class TestDecisions:
                 return result.data
 
         data = _run(check())
-        assert isinstance(data, list)
-        assert len(data) >= 1
+        assert isinstance(data["items"], list)
+        assert len(data["items"]) >= 1
+        assert data["total"] == len(data["items"])
+        assert "note" not in data
+
+    def test_limit_truncates_with_note(self, mcp_app):
+        from fastmcp import Client
+
+        async def check():
+            async with Client(mcp_app) as client:
+                result = await client.call_tool("decisions", {"limit": 0})
+                return result.data
+
+        data = _run(check())
+        assert data["items"] == []
+        assert data["total"] >= 1
+        assert f"...and {data['total']} more" in data["note"]
+
+    def test_count_only(self, mcp_app):
+        from fastmcp import Client
+
+        async def check():
+            async with Client(mcp_app) as client:
+                result = await client.call_tool("decisions", {"count_only": True})
+                return result.data
+
+        data = _run(check())
+        assert data["items"] == []
+        assert data["total"] >= 1
 
 
 class TestAudit:
