@@ -46,7 +46,11 @@ def _print_help() -> None:
         "\n"
         "Commands:\n"
         "  build                      Walk the cowork corpus and write the SQLite graph DB.\n"
-        "  update --since <git-ref>   Incrementally re-parse files changed since <git-ref>.\n"
+        "  update --since <git-ref>   Incrementally re-parse changed files. Diffs from the last\n"
+        "                             successfully-indexed commit when one is recorded, so an\n"
+        "                             interrupted run is caught up rather than skipped; <git-ref>\n"
+        "                             is the fallback. Full rebuild if that commit is unknown\n"
+        "                             or was rewritten out of history.\n"
         "  reindex                    Full rebuild (alias for build; used by the git hook on merges).\n"
         "  audit [--write] [--html] [--no-html]\n"
         "                             Run ten drift-detection checks.\n"
@@ -131,6 +135,11 @@ def _cmd_build(_args: list[str]) -> int:
     conn = db.connect(db_path)
     built_at = datetime.now(timezone.utc).isoformat()
     t0 = time.monotonic()
+
+    # Capture HEAD *before* the walk, not after. A commit landing mid-build
+    # would otherwise be recorded as indexed without its files ever being read.
+    from cowork_graph import incremental as _inc
+    target_sha = _inc.head_sha(cowork_root)
 
     # ---------------------------------------------------------------------------
     # Pass 1: collect person nodes so the parser can match mentions
@@ -240,6 +249,8 @@ def _cmd_build(_args: list[str]) -> int:
     # Finalize meta and print summary
     # ---------------------------------------------------------------------------
     db.update_meta(conn, built_at=built_at, build_kind="full")
+    if target_sha:
+        db.set_last_indexed_sha(conn, target_sha)
     conn.commit()
     conn.close()
 
@@ -471,7 +482,7 @@ def _cmd_update(args: list[str]) -> int:
     if idx + 1 >= len(args):
         print("Error: --since requires a git ref argument.", file=sys.stderr)
         return 1
-    since_ref = args[idx + 1]
+    requested_ref = args[idx + 1]
 
     cfg = cfg_mod.load()
     cowork_root = cfg.cowork_root.resolve()
@@ -493,6 +504,51 @@ def _cmd_update(args: list[str]) -> int:
     conn = db.connect(cfg.db_path)
     t0 = time.monotonic()
 
+    # ---------------------------------------------------------------------------
+    # Resolve the range to index.
+    #
+    # Prefer the SHA the graph was last successfully indexed against over the
+    # caller's --since. The hook always passes a fixed ref (HEAD~1 / ORIG_HEAD)
+    # which covers only the newest change; if an earlier run was interrupted,
+    # that ref skips straight past the gap and the missed commits are never
+    # indexed again. Diffing from the stored SHA absorbs any backlog.
+    #
+    # Unknown or unreachable stored SHA means we cannot know what is missing,
+    # so rebuild rather than guess.
+    # ---------------------------------------------------------------------------
+    stored_sha = db.get_last_indexed_sha(conn)
+    target_sha = inc_mod.head_sha(cowork_root)
+
+    if stored_sha is None:
+        conn.close()
+        print(
+            "No last-indexed commit recorded — running full rebuild to establish a baseline.",
+            file=sys.stderr,
+        )
+        return _cmd_build([])
+
+    if not inc_mod.commit_exists(stored_sha, cowork_root):
+        conn.close()
+        print(
+            f"Last-indexed commit {stored_sha[:9]} is no longer reachable "
+            "(history rewritten) — running full rebuild.",
+            file=sys.stderr,
+        )
+        return _cmd_build([])
+
+    if stored_sha == target_sha:
+        conn.close()
+        print("Graph already current — nothing to do.")
+        return 0
+
+    since_ref = stored_sha
+    if since_ref != requested_ref:
+        print(
+            f"Indexing from last-indexed commit {stored_sha[:9]} "
+            f"(hook requested {requested_ref}) — catching up any missed runs.",
+            file=sys.stderr,
+        )
+
     persons: dict[str, str] = {
         row["slug"]: row["display_name"]
         for row in conn.execute("SELECT slug, display_name FROM person WHERE is_ghost=0").fetchall()
@@ -500,6 +556,21 @@ def _cmd_update(args: list[str]) -> int:
 
     try:
         summary = inc_mod.run_incremental(conn, since_ref, cowork_root, persons)
+        # Only advance the watermark once the range is fully processed. If this
+        # process is killed mid-run (or run_incremental raises), the stored SHA
+        # is left untouched and the next run re-covers the same range.
+        if target_sha:
+            db.set_last_indexed_sha(conn, target_sha)
+        # Stamp built_at here too. Without this, built_at only ever moves on a
+        # full build, so "the timestamp looks recent" says nothing about whether
+        # incremental runs are landing — which is how the missed nightly syncs
+        # went unnoticed. last_indexed_sha == HEAD is the real health check.
+        db.update_meta(
+            conn,
+            built_at=datetime.now(timezone.utc).isoformat(),
+            build_kind="incremental",
+        )
+        conn.commit()
     finally:
         conn.close()
 

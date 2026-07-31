@@ -325,3 +325,31 @@ def update_meta(conn: sqlite3.Connection, *, built_at: str, build_kind: str) -> 
         "INSERT OR REPLACE INTO schema_meta (key, value) VALUES (?, ?)",
         [("built_at", built_at), ("build_kind", build_kind)],
     )
+
+
+def get_last_indexed_sha(conn: sqlite3.Connection) -> str | None:
+    """Return the commit SHA the graph was last successfully indexed against.
+
+    None means unknown — either a DB predating this tracking, or no run has
+    ever completed. Callers treat unknown as "rebuild from scratch" rather
+    than guessing a range.
+    """
+    row = conn.execute(
+        "SELECT value FROM schema_meta WHERE key = 'last_indexed_sha'"
+    ).fetchone()
+    return row[0] if row and row[0] else None
+
+
+def set_last_indexed_sha(conn: sqlite3.Connection, sha: str) -> None:
+    """Record the commit SHA the graph is now current as of.
+
+    Call this ONLY after a run completes successfully. The self-healing
+    property depends on it: a run that is killed partway (the nightly
+    scheduled task exiting and taking the backgrounded update with it) never
+    reaches this call, so the stored SHA stays put and the next run diffs
+    from it — closing the gap instead of silently skipping it forever.
+    """
+    conn.execute(
+        "INSERT OR REPLACE INTO schema_meta (key, value) VALUES ('last_indexed_sha', ?)",
+        (sha,),
+    )

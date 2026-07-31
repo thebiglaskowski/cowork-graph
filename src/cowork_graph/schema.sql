@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 --   ('parser_version', '<cowork_graph.__version__>')
 --   ('built_at',       '<iso>')
 --   ('build_kind',     'full' | 'incremental' | 'merge_full')
+--   ('last_indexed_sha', '<40-char commit sha>')
+--       The commit the graph is current as of. Written only after a run
+--       completes, so an interrupted run leaves it behind and the next run
+--       diffs from it and covers the gap. Absent on pre-tracking DBs, which
+--       forces one full rebuild to establish a baseline.
 
 -- ==========================================================
 -- Node tables

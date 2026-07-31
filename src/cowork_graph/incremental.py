@@ -29,6 +29,36 @@ def is_merge_commit(cowork_root: Path) -> bool:
     return result.returncode == 0
 
 
+def head_sha(cowork_root: Path) -> str | None:
+    """Return the full SHA of HEAD, or None if it can't be resolved."""
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=cowork_root,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def commit_exists(sha: str, cowork_root: Path) -> bool:
+    """Return True if sha still resolves to a commit object in this repo.
+
+    A stored SHA can become unreachable (history rewrite followed by gc), in
+    which case diffing against it fails and the caller must fall back to a
+    full rebuild. Note that a merely *orphaned* commit is still fine: git diff
+    compares trees, not ancestry, so an unreachable-but-present commit yields
+    the correct file delta.
+    """
+    result = subprocess.run(
+        ["git", "cat-file", "-e", f"{sha}^{{commit}}"],
+        cwd=cowork_root,
+        capture_output=True,
+    )
+    return result.returncode == 0
+
+
 def git_diff_files(since_ref: str, cowork_root: Path) -> DiffResult:
     """Return file-level diff between since_ref and HEAD, with rename detection at 80%."""
     result = subprocess.run(
