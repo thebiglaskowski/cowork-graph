@@ -343,6 +343,28 @@ class TestServeCLI:
             "path": "/mcp",
         }
 
+    def test_http_transport_is_stateless(self, monkeypatch):
+        """A restart must not strand connected clients on dead session IDs.
+
+        Sessionful streamable HTTP 404s every client whose session predates a
+        server restart — the desktop extension's mcp-remote proxy then hangs
+        on every tool call until manually restarted.
+        """
+        import cowork_graph.mcp_server as srv
+
+        captured: dict = {}
+        monkeypatch.setattr(srv.mcp, "run", lambda **kw: captured.update(kw))
+        srv.main(transport="http")
+        assert captured["stateless_http"] is True
+
+    def test_stdio_transport_has_no_http_kwargs(self, monkeypatch):
+        import cowork_graph.mcp_server as srv
+
+        captured: dict = {}
+        monkeypatch.setattr(srv.mcp, "run", lambda **kw: captured.update(kw))
+        srv.main()
+        assert captured == {}
+
     def test_http_parses_host_port_path(self, monkeypatch):
         from cowork_graph import cli
 

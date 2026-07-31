@@ -167,8 +167,17 @@ def main(
     Pass ``transport="http"`` to run a single shared server that multiple
     clients connect to over HTTP, avoiding a per-client process spawn (and the
     startup contention that causes).
+
+    HTTP runs stateless: every tool call opens its own DB connection, so
+    per-session server state buys nothing — and sessionful streamable HTTP
+    means a server restart invalidates every connected client's session ID.
+    The long-lived mcp-remote proxy inside the jl-graph desktop extension
+    then wedges on 404 "Session not found" (its reconnect loop reuses the
+    dead session) and every tool call hangs until the extension is restarted.
+    Stateless mode ignores session IDs entirely, so clients ride through
+    server restarts.
     """
     if transport == "http":
-        mcp.run(transport="http", host=host, port=port, path=path)
+        mcp.run(transport="http", host=host, port=port, path=path, stateless_http=True)
     else:
         mcp.run()
