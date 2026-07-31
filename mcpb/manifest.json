@@ -1,0 +1,35 @@
+{
+  "manifest_version": "0.3",
+  "name": "jl-graph",
+  "display_name": "jl-graph",
+  "version": "3.3.0",
+  "description": "Structured queries over the cowork markdown corpus (search_docs, list_active, project_state, decisions, who, audit).",
+  "long_description": "Bridges Claude Desktop, Cowork sessions, and live artifacts to the locally-hosted cowork-graph MCP server via a thin stdio-to-HTTP proxy (mcp-remote) pointing at http://127.0.0.1:8765/mcp (the cowork-graph-mcp.service systemd user unit in WSL). RENAMED from 'cowork-graph' (2026-07-31): Claude Desktop reserves the 'cowork' name prefix for its internal servers and LocalMcpServerManager silently drops colliding extensions before they reach the remote-devices bridge — which is why this extension never surfaced to cloud Cowork sessions despite working in the desktop app. The tool prefix live artifacts see is now mcp__jl-graph__*; artifacts that hardcoded mcp__cowork-graph__* must be updated. NOTE: mcp_config uses an ABSOLUTE path instead of ${__dirname} because the artifact-host connect path does not substitute manifest variables ('Node.js server requires a resolvable entry point' error, 2026-07-13). The path assumes install under %APPDATA%/Claude/Claude Extensions/local.mcpb.joe-laskowski.jl-graph/.",
+  "author": {
+    "name": "Joe Laskowski",
+    "url": "https://github.com/thebiglaskowski"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "node_modules/mcp-remote/dist/proxy.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\joela\\AppData\\Roaming\\Claude\\Claude Extensions\\local.mcpb.joe-laskowski.jl-graph\\node_modules\\mcp-remote\\dist\\proxy.js",
+        "http://127.0.0.1:8765/mcp",
+        "--transport", "http-only"
+      ],
+      "env": {}
+    }
+  },
+  "tools": [
+    {"name": "search_docs", "description": "Full-text + tag/status/scope filtered search over the corpus"},
+    {"name": "get_doc", "description": "Frontmatter, neighbors, recent edits for one doc"},
+    {"name": "list_active", "description": "Every status/active doc, filterable by scope or project"},
+    {"name": "list_blocked", "description": "Blocked docs with upstream blockers resolved"},
+    {"name": "project_state", "description": "Full subgraph for one project"},
+    {"name": "who", "description": "Person node and every doc mentioning them"},
+    {"name": "decisions", "description": "Recent decisions, topic-filterable"},
+    {"name": "audit", "description": "Run the drift-detection linter"}
+  ]
+}
