@@ -45,3 +45,6 @@ env/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Claude Code local settings (absolute paths, per-machine hook registration)
+.claude/settings.local.json
