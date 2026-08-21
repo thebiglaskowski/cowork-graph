@@ -23,7 +23,10 @@ dev = [
   "ruff>=0.4",
 ]
 mcp = [
-  "fastmcp>=0.1",
+  # >=3.4 because mcp_server.py passes stateless_http=True to run_http_async.
+  # Older fastmcp accepts no such parameter, so a resolver free to pick one
+  # produces a server that fails at runtime rather than at install time.
+  "fastmcp>=3.4",
 ]
 
 [tool.hatch.build.targets.wheel]

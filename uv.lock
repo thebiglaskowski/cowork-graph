@@ -235,7 +235,7 @@ dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.4" },
 ]
-mcp = [{ name = "fastmcp", specifier = ">=0.1" }]
+mcp = [{ name = "fastmcp", specifier = ">=3.4" }]
 
 [[package]]
 name = "cryptography"
