@@ -18,12 +18,17 @@ Local SQLite knowledge graph over the entire [`cowork/`](https://github.com/theb
 
 ## Status
 
-All five build phases shipped (2026-05-05 – 2026-05-06). Now in Phase 6: passive trust window — in-flight fixes as edge cases surface, no planned new phases until nexus-ledger Phase 3 ships.
+All five build phases shipped (2026-05-05 – 2026-05-06), followed by Phase 6 parser cleanup and a run of hardening work through 2026-07-31 — shared HTTP serve mode, a self-healing watermark, bounded list responses, stateless HTTP transport, and the `jl-graph` Claude Desktop extension. The standing posture is still the passive trust window: fixes as edge cases surface, no new numbered phases planned until nexus-ledger Phase 3 ships.
 
-- 343 tests, 0 failures
-- 216 docs parsed from real corpus, 0 parse failures
-- Incremental update: ~0.4s for a 2-file commit vs ~24s full rebuild
-- Post-commit hook live in `cowork/.git/hooks/post-commit`
+Measured 2026-08-21:
+
+- 377 tests, 0 failures
+- 631 docs parsed from the real corpus, 0 parse failures
+- Incremental update: a 75-file daily sync touched 32 docs in **1.8s**; a full rebuild of the same corpus takes **354s**
+- Three sync hooks live in `cowork/.git/hooks/` — `post-commit`, `post-merge`, `post-rewrite`
+- Served by the `cowork-graph-mcp` systemd user unit on `127.0.0.1:8765`
+
+The rebuild cost is why the sync hooks matter: the corpus lives on a Windows mount (`/mnt/c`), so a full walk is minutes, not seconds. Incremental updates keep commits effectively free, and the watermark means a missed run catches up rather than leaving a permanent gap.
 
 ## Install
 
@@ -66,20 +71,32 @@ uv run cowork-graph help
 
 Config file: `~/.config/cowork-graph/config.toml` (generated on first run with sensible defaults). Override the DB path with `COWORK_GRAPH_DB_PATH`.
 
-## Sync hook
+## Sync hooks
 
-After building once, wire the post-commit hook so the graph stays current automatically:
+After building once, wire the git hooks so the graph stays current automatically:
 
 ```bash
 sh scripts/install-hook.sh [/path/to/cowork]
 ```
 
-Defaults to `/mnt/c/Users/joela/cowork`. The installer:
-- Resolves the CLI path (PATH first, falls back to `.venv/bin/cowork-graph`)
-- Appends to any existing hook (git-lfs safe, idempotent)
-- Writes `cowork-graph update --since HEAD~1 &` (backgrounded)
+Defaults to `/mnt/c/Users/joela/cowork`. Three hooks get installed, each backgrounding a `cowork-graph update` run:
 
-On merge commits the CLI detects the second parent and runs a full rebuild instead of an incremental update.
+| Hook | `--since` | Covers |
+|------|-----------|--------|
+| `post-commit` | `HEAD~1` | the commit you just made |
+| `post-merge` | `ORIG_HEAD` | fast-forward pulls — the common two-machine sync case |
+| `post-rewrite` | `ORIG_HEAD` | rebasing pulls; guarded to `$1 = "rebase"` so `commit --amend` doesn't double-fire |
+
+`post-merge` and `post-rewrite` exist because the graph is derived per-machine and never committed — without them, the machine doing the pulling never sees the other machine's edits until its own next commit, and that commit only sweeps `HEAD~1`, so a multi-commit pull stays permanently missing.
+
+The installer:
+- Invokes the project-venv CLI by absolute WSL path, so both a WSL commit (direct) and a Windows commit (routed through `wsl.exe`) resolve it
+- Appends to any existing hook (git-lfs safe, idempotent per hook file)
+- Backgrounds the update so commits never block
+
+On merge commits the CLI detects the second parent and runs a full rebuild instead of an incremental update. A self-healing last-indexed-SHA watermark means a missed run catches up on the next one rather than leaving a permanent gap.
+
+`.git/hooks` is not tracked by git, so **run this once per machine** — SKYNET and SKYNET-DUEX each need their own install.
 
 ## MCP tools
 
@@ -95,6 +112,8 @@ Eight tools exposed to Claude via the MCP server:
 | `who` | Person lookup by name or alias |
 | `decisions` | Decision log entries with optional date/status filter |
 | `audit` | Run all ten drift checks; optional `write_report` flag |
+
+The list-returning tools (`list_active`, `list_blocked`, `decisions`, and `who`'s mentions) accept a `limit` and return a `{items, total, hint}` envelope so a large corpus can't blow up a client's context. `count_only` returns just the count. Defaults are bounded — an unbounded `list_active` against ~500 active docs is what caused 60-second client timeouts before this landed.
 
 ## Shared HTTP server
 

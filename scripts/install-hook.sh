@@ -7,10 +7,13 @@
 # Safe to re-run — idempotent per hook; will not double-insert a hook line.
 # Appends to an existing hook (e.g. git-lfs) rather than overwriting it.
 #
-# Two hooks get installed:
+# Three hooks get installed:
 #
-#   post-commit  `update --since HEAD~1` — the commit you just made.
-#   post-merge   `update --since ORIG_HEAD` — everything a pull brought in.
+#   post-commit   `update --since HEAD~1` — the commit you just made.
+#   post-merge    `update --since ORIG_HEAD` — everything a pull brought in.
+#   post-rewrite  `update --since ORIG_HEAD` — everything a rebasing pull replayed.
+#                 Guarded to $1 = "rebase" so `git commit --amend` doesn't
+#                 double-fire against a post-commit run that already covered it.
 #
 # post-merge exists because the graph DB is derived per-machine and never
 # committed. Without it, the machine doing the pulling never sees the other
