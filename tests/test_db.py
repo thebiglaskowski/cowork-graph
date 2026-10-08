@@ -415,6 +415,31 @@ class TestResolveGhostProjects:
         row = conn.execute("SELECT hub_doc FROM project WHERE slug='my-proj'").fetchone()
         assert row["hub_doc"] == "autoscriptstudio/a-hub.md"
 
+    def test_re_resolves_already_resolved_project_after_hub_rename(self, conn):
+        # Incremental mode: hub_doc must track a renamed hub, as a full rebuild would
+        conn.execute("BEGIN")
+        self._insert_hub_doc(conn, "p/old-hub.md", "my-proj")
+        self._insert_ghost(conn, "my-proj")
+        db.resolve_ghost_projects(conn)
+        db.rename_doc(conn, old_path="p/old-hub.md", new_path="p/new-hub.md")
+        db.resolve_ghost_projects(conn)
+        conn.execute("COMMIT")
+
+        row = conn.execute("SELECT is_ghost, hub_doc FROM project WHERE slug='my-proj'").fetchone()
+        assert (row["is_ghost"], row["hub_doc"]) == (0, "p/new-hub.md")
+
+    def test_re_ghosts_project_whose_hub_disappears(self, conn):
+        conn.execute("BEGIN")
+        self._insert_hub_doc(conn, "p/hub.md", "my-proj")
+        self._insert_ghost(conn, "my-proj")
+        db.resolve_ghost_projects(conn)
+        db.delete_doc(conn, "p/hub.md")
+        db.resolve_ghost_projects(conn)
+        conn.execute("COMMIT")
+
+        row = conn.execute("SELECT is_ghost, hub_doc FROM project WHERE slug='my-proj'").fetchone()
+        assert (row["is_ghost"], row["hub_doc"]) == (1, None)
+
 
 class TestDeleteDoc:
     def _insert_doc(self, conn, path="autoscriptstudio/hub.md"):

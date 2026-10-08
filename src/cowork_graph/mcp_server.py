@@ -62,7 +62,7 @@ def list_active(
     limit: int = 50,
     count_only: bool = False,
 ) -> dict:
-    """List docs with status/active across the corpus, newest-first by last_modified, optionally filtered by entity scope (autoscriptstudio, personal, nexus-legacy-holdings) or project slug. Use when surveying current work, generating a status summary, or planning a work session by seeing what's in flight. Returns {items, total} plus a note when truncated at `limit` (default 50); pass count_only=true for just the total."""
+    """List effectively-active docs across the corpus (a leaf tagged status/active or untagged takes its project hub's status, so leaves of a paused or parked project drop out; every `status` field in responses is this effective status), newest-first by last_modified, optionally filtered by entity scope (autoscriptstudio, personal, nexus-legacy-holdings) or project slug. Use when surveying current work, generating a status summary, or planning a work session by seeing what's in flight. Returns {items, total} plus a note when truncated at `limit` (default 50); pass count_only=true for just the total."""
     conn = _conn()
     try:
         total = queries.count_active(conn, scope=scope, project=project)
@@ -76,7 +76,7 @@ def list_active(
 
 @mcp.tool
 def list_blocked(limit: int = 50, count_only: bool = False) -> dict:
-    """List docs with status/blocked, newest-first, with the upstream blocker resolved via BLOCKS edges. Use when investigating what's stuck and why, generating a blockers list, or before making decisions that depend on currently-blocked work clearing. Returns {items, total} plus a note when truncated at `limit` (default 50); pass count_only=true for just the total."""
+    """List effectively-blocked docs, newest-first, with the upstream blocker resolved via BLOCKS edges. Use when investigating what's stuck and why, generating a blockers list, or before making decisions that depend on currently-blocked work clearing. Returns {items, total} plus a note when truncated at `limit` (default 50); pass count_only=true for just the total."""
     conn = _conn()
     try:
         total = queries.count_blocked(conn)

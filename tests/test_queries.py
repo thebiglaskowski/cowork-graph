@@ -296,3 +296,96 @@ class TestLimitsAndCounts:
         limited = who(graph_db, "Jane Doe", mentions_limit=0)
         assert limited.mentions == []
         assert limited.mentions_total == full.mentions_total > 0
+
+
+# ---------------------------------------------------------------------------
+# Hub-derived effective status (plan.md "Hub-derived status")
+# ---------------------------------------------------------------------------
+
+OLD, NEW = "2020-01-01T00:00:00", "2999-01-01T00:00:00"
+
+
+@pytest.fixture
+def status_db():
+    """alpha: active hub. beta: paused hub. ghost: no hub. gamma: active hub, all old."""
+    conn = db.connect(":memory:")
+    docs = [
+        # path, own status, doc_type, last_modified, projects
+        ("alpha/hub.md", "active", "hub", OLD, ["alpha"]),
+        ("alpha/active.md", "active", None, NEW, ["alpha"]),
+        ("alpha/untagged.md", None, None, OLD, ["alpha"]),
+        ("alpha/done.md", "done", None, OLD, ["alpha"]),
+        ("beta/hub.md", "paused", "hub", OLD, ["beta"]),
+        ("beta/active.md", "active", None, OLD, ["beta"]),
+        ("beta/untagged.md", None, None, OLD, ["beta"]),
+        ("multi.md", "active", None, OLD, ["beta", "alpha"]),
+        ("ghost/leaf.md", "active", None, OLD, ["ghost"]),
+        ("gamma/hub.md", "active", "hub", OLD, ["gamma"]),
+        ("gamma/leaf.md", "active", None, OLD, ["gamma"]),
+        ("loose-old.md", "active", None, OLD, []),
+        ("loose-new.md", "active", None, NEW, []),
+    ]
+    for path, status, doc_type, mtime, projects in docs:
+        conn.execute(
+            "INSERT INTO doc (path, title, status, doc_type, last_modified, parsed_at,"
+            " parse_status) VALUES (?, ?, ?, ?, ?, ?, 'ok')",
+            (path, path, status, doc_type, mtime, NEW),
+        )
+        for slug in projects:
+            conn.execute(
+                "INSERT INTO edge (source_type, source_id, edge_type, target_type, target_id)"
+                " VALUES ('doc', ?, 'MEMBER_OF_PROJECT', 'project', ?)",
+                (path, slug),
+            )
+    for slug, hub in [
+        ("alpha", "alpha/hub.md"),
+        ("beta", "beta/hub.md"),
+        ("gamma", "gamma/hub.md"),
+        ("ghost", None),
+    ]:
+        conn.execute(
+            "INSERT INTO project (slug, hub_doc, is_ghost) VALUES (?, ?, ?)",
+            (slug, hub, hub is None),
+        )
+    yield conn
+    conn.close()
+
+
+class TestEffectiveStatus:
+    def test_effective_status_rules(self, status_db):
+        got = {
+            d.path: d.status
+            for slug in ("alpha", "beta", "gamma", "ghost")
+            for d in project_state(status_db, slug).member_docs
+        }
+        assert got == {
+            "alpha/hub.md": "active",
+            "alpha/active.md": "active",
+            "alpha/untagged.md": "active",  # untagged inherits
+            "alpha/done.md": "done",  # non-active leaf tag wins
+            "beta/hub.md": "paused",  # hub keeps its own status
+            "beta/active.md": "paused",  # active leaf inherits a paused hub
+            "beta/untagged.md": "paused",
+            "multi.md": "active",  # an active hub wins a multi-project tie
+            "ghost/leaf.md": "active",  # no governing hub: own tag
+            "gamma/hub.md": "active",
+            "gamma/leaf.md": "active",
+        }
+
+    def test_list_active_and_count_agree_on_effective_status(self, status_db):
+        paths = {d.path for d in list_active(status_db)}
+        assert "beta/active.md" not in paths
+        assert {"alpha/untagged.md", "loose-old.md"} <= paths
+        assert count_active(status_db) == len(paths)
+
+    def test_project_status_mix_uses_effective_status(self, status_db):
+        # multi.md is also a beta member but resolves active via its alpha hub
+        assert project_state(status_db, "beta").status_mix == {"paused": 3, "active": 1}
+
+    def test_stale_judged_per_hub_and_ungoverned_leaf(self, status_db):
+        from cowork_graph.audit import stale_active_docs
+
+        stale = {r["path"] for r in stale_active_docs(status_db)}
+        # alpha/hub is old but alpha/active.md is fresh, so the project is live.
+        # gamma is old end to end. Hub-governed leaves are never flagged alone.
+        assert stale == {"gamma/hub.md", "ghost/leaf.md", "loose-old.md"}

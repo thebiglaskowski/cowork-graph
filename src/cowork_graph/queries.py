@@ -6,6 +6,29 @@ import sqlite3
 from dataclasses import dataclass, field
 
 # ---------------------------------------------------------------------------
+# Effective status (plan.md "Hub-derived status"). SQL fragments over a `doc d`
+# alias: hubs keep their own tag; a leaf tagged active, or untagged, inherits its
+# project hub's status (an active hub wins a multi-project tie); any other leaf
+# tag wins; a leaf with no governing hub keeps its own tag. Query-time only —
+# doc.status always stores the doc's own tag.
+# ---------------------------------------------------------------------------
+
+_GOVERNING_HUBS = (
+    " FROM edge e"
+    " JOIN project p ON p.slug = e.target_id"
+    " JOIN doc h ON h.path = p.hub_doc"
+    " WHERE e.source_type = 'doc' AND e.source_id = d.path"
+    " AND e.edge_type = 'MEMBER_OF_PROJECT' AND h.path <> d.path"
+)
+HAS_GOVERNING_HUB = f"(d.doc_type IS NOT 'hub' AND EXISTS (SELECT 1{_GOVERNING_HUBS}))"
+EFFECTIVE_STATUS = (
+    "(CASE WHEN d.doc_type = 'hub' THEN d.status ELSE COALESCE("
+    "NULLIF(d.status, 'active'),"
+    f" (SELECT h.status{_GOVERNING_HUBS} ORDER BY h.status = 'active' DESC, h.path LIMIT 1),"
+    " d.status) END)"
+)
+
+# ---------------------------------------------------------------------------
 # Return types
 # ---------------------------------------------------------------------------
 
@@ -108,7 +131,7 @@ def search_docs(
     params: list = [query]
 
     if status:
-        sql += " AND d.status = ?"
+        sql += f" AND {EFFECTIVE_STATUS} = ?"
         params.append(status)
     if scope:
         sql += " AND d.path LIKE ?"
@@ -142,7 +165,8 @@ def search_docs(
 def get_doc(conn: sqlite3.Connection, path: str) -> DocDetail | None:
     """Return doc metadata plus inbound and outbound edges."""
     row = conn.execute(
-        "SELECT path, title, status, doc_type, word_count, last_modified FROM doc WHERE path = ?",
+        f"SELECT path, title, {EFFECTIVE_STATUS} AS status, doc_type, word_count, last_modified"
+        " FROM doc d WHERE path = ?",
         (path,),
     ).fetchone()
     if row is None:
@@ -189,7 +213,7 @@ def get_doc(conn: sqlite3.Connection, path: str) -> DocDetail | None:
 
 def _active_filter(scope: str | None, project: str | None) -> tuple[str, list]:
     """WHERE clause + params shared by list_active and count_active."""
-    sql = " WHERE status='active'"
+    sql = f" WHERE {EFFECTIVE_STATUS} = 'active'"
     params: list = []
 
     if scope:
@@ -199,7 +223,7 @@ def _active_filter(scope: str | None, project: str | None) -> tuple[str, list]:
         sql += (
             " AND EXISTS ("
             "  SELECT 1 FROM edge"
-            "  WHERE source_type='doc' AND source_id=doc.path"
+            "  WHERE source_type='doc' AND source_id=d.path"
             "  AND edge_type='MEMBER_OF_PROJECT' AND target_id=?"
             ")"
         )
@@ -215,7 +239,7 @@ def count_active(
 ) -> int:
     """Number of active docs matching the same filters as list_active."""
     where, params = _active_filter(scope, project)
-    return conn.execute(f"SELECT COUNT(*) FROM doc{where}", params).fetchone()[0]
+    return conn.execute(f"SELECT COUNT(*) FROM doc d{where}", params).fetchone()[0]
 
 
 def list_active(
@@ -227,7 +251,7 @@ def list_active(
 ) -> list[DocSummary]:
     """Active docs, newest-first, optionally narrowed by entity scope or project slug."""
     where, params = _active_filter(scope, project)
-    sql = f"SELECT path, title, status, doc_type, last_modified FROM doc{where}"
+    sql = f"SELECT path, title, {EFFECTIVE_STATUS} AS status, doc_type, last_modified FROM doc d{where}"
     sql += " ORDER BY last_modified DESC"
     if limit is not None:
         sql += " LIMIT ?"
@@ -247,12 +271,17 @@ def list_active(
 
 def count_blocked(conn: sqlite3.Connection) -> int:
     """Number of blocked docs."""
-    return conn.execute("SELECT COUNT(*) FROM doc WHERE status='blocked'").fetchone()[0]
+    return conn.execute(
+        f"SELECT COUNT(*) FROM doc d WHERE {EFFECTIVE_STATUS} = 'blocked'"
+    ).fetchone()[0]
 
 
 def list_blocked(conn: sqlite3.Connection, *, limit: int | None = None) -> list[BlockedDoc]:
     """Blocked docs, newest-first, with upstream blockers resolved via BLOCKS edges."""
-    sql = "SELECT path, title FROM doc WHERE status='blocked' ORDER BY last_modified DESC"
+    sql = (
+        f"SELECT path, title FROM doc d WHERE {EFFECTIVE_STATUS} = 'blocked'"
+        " ORDER BY last_modified DESC"
+    )
     params: list = []
     if limit is not None:
         sql += " LIMIT ?"
@@ -297,7 +326,7 @@ def project_state(conn: sqlite3.Connection, slug: str) -> ProjectState | None:
         return None
 
     member_rows = conn.execute(
-        "SELECT d.path, d.title, d.status, d.doc_type, d.last_modified"
+        f"SELECT d.path, d.title, {EFFECTIVE_STATUS} AS status, d.doc_type, d.last_modified"
         " FROM doc d"
         " JOIN edge e ON e.source_type='doc' AND e.source_id=d.path"
         " AND e.edge_type='MEMBER_OF_PROJECT' AND e.target_id=?"
@@ -399,7 +428,7 @@ def who(
     ).fetchone()[0]
 
     sql = (
-        "SELECT d.path, d.title, d.status, d.doc_type, d.last_modified"
+        f"SELECT d.path, d.title, {EFFECTIVE_STATUS} AS status, d.doc_type, d.last_modified"
         " FROM doc d"
         " JOIN edge e ON e.source_type='doc' AND e.source_id=d.path"
         " AND e.edge_type='MENTIONS' AND e.target_type='person' AND e.target_id=?"

@@ -133,15 +133,20 @@ def upsert_project(
 
 
 def resolve_ghost_projects(conn: sqlite3.Connection) -> int:
-    """Flip is_ghost=0 and set hub_doc for ghost projects that have a hub doc.
+    """Recompute hub_doc and is_ghost for every project from the current docs.
 
     Finds hub docs by querying for docs tagged with 'project/<slug>' whose
     doc_type is 'hub'. Tiebreaker: prefers memory/projects/<slug>.md, then
-    lexicographically smallest path.
+    lexicographically smallest path. Projects with no hub doc become ghosts.
 
-    Returns the number of projects resolved.
+    Every project is re-resolved, not just ghosts: a hub that was renamed,
+    deleted, or lost type/hub in an incremental run must not leave a stale
+    pointer — effective status joins through hub_doc, and a full rebuild
+    would recompute it from scratch.
+
+    Returns the number of projects that have a hub.
     """
-    rows = conn.execute("SELECT slug FROM project WHERE is_ghost=1").fetchall()
+    rows = conn.execute("SELECT slug FROM project").fetchall()
     resolved = 0
     for row in rows:
         slug = row["slug"]
@@ -157,6 +162,7 @@ def resolve_ghost_projects(conn: sqlite3.Connection) -> int:
             ).fetchall()
         ]
         if not candidates:
+            conn.execute("UPDATE project SET is_ghost=1, hub_doc=NULL WHERE slug=?", (slug,))
             continue
         preferred = f"memory/projects/{slug}.md"
         hub_path = preferred if preferred in candidates else min(candidates)

@@ -14,6 +14,8 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
+from cowork_graph.queries import EFFECTIVE_STATUS, HAS_GOVERNING_HUB
+
 # ---------------------------------------------------------------------------
 # Individual check functions — each returns list[dict], caller manages conn.
 # ---------------------------------------------------------------------------
@@ -81,11 +83,29 @@ def one_way_edges(conn: sqlite3.Connection) -> list[dict]:
 
 
 def stale_active_docs(conn: sqlite3.Connection, *, days: int = 90) -> list[dict]:
-    """status/active docs with no filesystem edits in the last `days` days."""
+    """Effectively-active docs with no edits in the last `days` days, judged per hub.
+
+    An active hub is stale when neither it nor any of its project's members was
+    edited in the window (its `last_modified` is that newest edit) — a parking
+    candidate. Hub-governed leaves are never flagged on their own; leaves with no
+    governing hub still carry hand-maintained status and are judged by their own
+    mtime. See plan.md "Hub-derived status".
+    """
     rows = conn.execute(
-        "SELECT path, title, last_modified FROM doc"
-        " WHERE status='active'"
-        " AND last_modified IS NOT NULL"
+        "SELECT path, title, last_modified FROM ("
+        " SELECT d.path, d.title,"
+        "  CASE WHEN d.doc_type = 'hub' THEN ("
+        "   SELECT MAX(t) FROM ("
+        "    SELECT d.last_modified AS t"
+        "    UNION ALL SELECT m.last_modified FROM project p"
+        "    JOIN edge e ON e.edge_type = 'MEMBER_OF_PROJECT' AND e.target_id = p.slug"
+        "     AND e.source_type = 'doc'"
+        "    JOIN doc m ON m.path = e.source_id"
+        "    WHERE p.hub_doc = d.path))"
+        "  ELSE d.last_modified END AS last_modified"
+        f" FROM doc d WHERE {EFFECTIVE_STATUS} = 'active' AND NOT {HAS_GOVERNING_HUB}"
+        ")"
+        " WHERE last_modified IS NOT NULL"
         " AND substr(last_modified, 1, 10) < date('now', ? || ' days')"
         " ORDER BY last_modified ASC",
         (f"-{days}",),
@@ -124,7 +144,7 @@ def orphan_docs(conn: sqlite3.Connection) -> list[dict]:
     """Active non-hub docs with no inbound LINKS_TO, RELATED_TO, or BLOCKS edges."""
     rows = conn.execute(
         "SELECT d.path, d.title FROM doc d"
-        " WHERE d.status='active'"
+        f" WHERE {EFFECTIVE_STATUS} = 'active'"
         " AND d.doc_type IS NOT 'hub'"
         " AND NOT EXISTS ("
         "  SELECT 1 FROM edge e"
