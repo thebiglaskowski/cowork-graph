@@ -376,10 +376,16 @@ def who(
     *,
     mentions_limit: int | None = None,
 ) -> PersonProfile | None:
-    """Person node plus docs that mention them, newest-first. v1: full canonical name only."""
+    """Person node plus docs that mention them, newest-first.
+
+    `name` resolves against display name, slug, or any alias (case-insensitive).
+    Alias resolution is lookup-only; MENTIONS edges still match full names (plan v1).
+    """
     row = conn.execute(
         "SELECT slug, display_name, role, source_doc FROM person"
-        " WHERE display_name = ? COLLATE NOCASE",
+        " WHERE display_name = ?1 COLLATE NOCASE OR slug = ?1 COLLATE NOCASE"
+        " OR slug IN (SELECT slug FROM person_alias WHERE alias = ?1 COLLATE NOCASE)"
+        " ORDER BY display_name = ?1 COLLATE NOCASE DESC, slug = ?1 COLLATE NOCASE DESC",
         (name,),
     ).fetchone()
     if row is None:

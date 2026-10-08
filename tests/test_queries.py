@@ -198,6 +198,12 @@ class TestWho:
         profile = who(graph_db, "Nobody Knowsbody")
         assert profile is None
 
+    @pytest.mark.parametrize("name", ["jane-doe", "Jane", "j. doe"])
+    def test_resolves_slug_and_aliases(self, graph_db, name):
+        profile = who(graph_db, name)
+        assert profile is not None
+        assert profile.slug == "jane-doe"
+
 
 class TestDecisions:
     def test_returns_all_decisions(self, graph_db):
