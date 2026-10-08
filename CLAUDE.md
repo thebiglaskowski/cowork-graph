@@ -45,7 +45,7 @@ This is a **src-layout** Python package (`src/cowork_graph/`). The CLI entrypoin
 
 **Runtime artifacts (`.db`, `.db-journal`, `.db-wal`, `.db-shm`) are gitignored** — the SQLite graph is derived state, rebuilt from cowork markdown on demand. Never commit database files.
 
-**`uv.lock` is committed** — keeps builds reproducible across machines (SKYNET and SKYNET-DUEX both run the same lockfile).
+**`uv.lock` is committed** — keeps builds reproducible on any clone.
 
 ### Key modules
 
@@ -83,7 +83,7 @@ cowork-graph mcp install             # Register with MCP clients
 
 The CLI detects merge commits and falls back to a full rebuild automatically. A self-healing last-indexed-SHA watermark means a missed run catches up on the next one rather than leaving a permanent gap.
 
-`.git/hooks` is not tracked by git, so this must be run **once per machine** — SKYNET and SKYNET-DUEX each need their own install.
+`.git/hooks` is not tracked by git, so this must be run **once per clone**. Only SKYNET runs it; SKYNET-DUEX is a remote-access client into SKYNET, not a mirrored install.
 
 ### Deployment
 
@@ -123,6 +123,8 @@ Shipped during the passive trust window, outside the numbered phases:
 - **Self-healing watermark** (7db86da) — last-indexed-SHA in `schema_meta`; a missed or failed run leaves it unadvanced so the next run covers the gap.
 - **Bounded list responses** (15985f5) — `limit` / `count_only` on every list tool plus a `_bounded()` envelope, after ~498 active docs caused 60-second `list_active` timeouts.
 - **Stateless HTTP transport** (1002d4b) — `stateless_http=True`, so restarting the service no longer strands clients in a session-not-found loop.
+- **Hub-derived status** (002236d; cowork 3d0d6a5 plan, 81152a2 migration, 2026-10-08) — implements the 2026-09-24 "work status lives on hubs" decision. Effective status is computed at query time (`EFFECTIVE_STATUS` in `queries.py`): a leaf tagged active or untagged takes its project hub's status. `stale_active_docs` is judged per hub. `resolve_ghost_projects` now re-resolves every project so incremental mode can't leave a stale `hub_doc`. Rules live in plan.md "Hub-derived status".
+- **fastmcp 4.0.11** (efd1ffa, 2026-10-08) — MCP SDK v2. Verified against the bundled `mcp-remote` before restarting the live unit.
 - **jl-graph mcpb extension** (b1ec9f7) — Claude Desktop extension source. Renamed from `cowork-graph` because Desktop reserves the `cowork` prefix and silently drops colliding extensions; the tool prefix clients see is now `mcp__jl-graph__*`.
 
 Do not make schema changes without first reading `plan.md` from the cowork side. A `PreToolUse` hook in `.claude/hooks/schema-guard.sh` blocks edits to `schema.sql` to enforce this.

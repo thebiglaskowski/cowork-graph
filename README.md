@@ -96,7 +96,7 @@ The installer:
 
 On merge commits the CLI detects the second parent and runs a full rebuild instead of an incremental update. A self-healing last-indexed-SHA watermark means a missed run catches up on the next one rather than leaving a permanent gap.
 
-`.git/hooks` is not tracked by git, so **run this once per machine** — SKYNET and SKYNET-DUEX each need their own install.
+`.git/hooks` is not tracked by git, so **run this once per clone**. Only SKYNET runs it; SKYNET-DUEX is a remote-access client into SKYNET, not a mirrored install.
 
 ## MCP tools
 
@@ -195,7 +195,7 @@ src/cowork_graph/
 
 **Database files are gitignored** (`.db`, `.db-journal`, `.db-wal`, `.db-shm`) — the graph is derived state, rebuilt from cowork markdown on demand. Never commit it.
 
-**`uv.lock` is committed** — reproducible builds across SKYNET and SKYNET-DUEX.
+**`uv.lock` is committed** — reproducible builds on any clone.
 
 ## Development
 

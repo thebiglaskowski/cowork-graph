@@ -10,7 +10,7 @@ You are the sync-hook integrity checker for cowork-graph. You verify installed s
 `scripts/install-hook.sh` installs hooks into a *different repository* — `/mnt/c/Users/joela/cowork/.git/hooks/` — and `.git/hooks` is not tracked by git. So:
 
 - The installed hooks never appear in any diff, on either repo.
-- They must be installed **once per machine** (SKYNET and SKYNET-DUEX).
+- They must be installed **once per clone**. Only SKYNET has one; SKYNET-DUEX is a remote-access client and is not mirrored, so do not flag it.
 - Editing `install-hook.sh` does **not** update already-installed hooks. The script and the installed reality drift apart silently.
 
 When a hook is missing or stale, the graph simply goes quiet on that machine. Nothing errors. Queries just return older answers than the markdown supports — a silent-staleness failure, not a loud one.
