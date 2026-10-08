@@ -45,12 +45,9 @@ def _bootstrap(conn: sqlite3.Connection) -> None:
         _OWNS_EDGES,
     )
     # Seed schema_meta (only on first create)
+    conn.execute("INSERT OR IGNORE INTO schema_meta (key, value) VALUES ('schema_version', '1')")
     conn.execute(
-        "INSERT OR IGNORE INTO schema_meta (key, value) VALUES ('schema_version', '1')"
-    )
-    conn.execute(
-        "INSERT OR IGNORE INTO schema_meta (key, value)"
-        " VALUES ('parser_version', ?)",
+        "INSERT OR IGNORE INTO schema_meta (key, value) VALUES ('parser_version', ?)",
         (cowork_graph.__version__,),
     )
     conn.commit()
@@ -80,8 +77,18 @@ def upsert_doc(
         " (path, title, status, doc_type, word_count, link_count,"
         "  last_modified, parsed_at, parse_status, parse_notes)"
         " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (path, title, status, doc_type, word_count, link_count,
-         last_modified, parsed_at, parse_status, parse_notes),
+        (
+            path,
+            title,
+            status,
+            doc_type,
+            word_count,
+            link_count,
+            last_modified,
+            parsed_at,
+            parse_status,
+            parse_notes,
+        ),
     )
 
 
@@ -165,9 +172,7 @@ def delete_doc(conn: sqlite3.Connection, path: str) -> None:
     """Delete all derived rows for a doc: decisions, their edges/format_drift, outbound edges, broken_links, FTS, and the doc row itself."""
     decision_ids = [
         row[0]
-        for row in conn.execute(
-            "SELECT id FROM decision WHERE log_doc=?", (path,)
-        ).fetchall()
+        for row in conn.execute("SELECT id FROM decision WHERE log_doc=?", (path,)).fetchall()
     ]
     for did in decision_ids:
         conn.execute(
@@ -179,9 +184,7 @@ def delete_doc(conn: sqlite3.Connection, path: str) -> None:
             (did,),
         )
     conn.execute("DELETE FROM decision WHERE log_doc=?", (path,))
-    conn.execute(
-        "DELETE FROM edge WHERE source_type='doc' AND source_id=?", (path,)
-    )
+    conn.execute("DELETE FROM edge WHERE source_type='doc' AND source_id=?", (path,))
     conn.execute("DELETE FROM broken_link WHERE source_doc=?", (path,))
     conn.execute("DELETE FROM doc_fts WHERE path=?", (path,))
     conn.execute("DELETE FROM doc WHERE path=?", (path,))
@@ -247,8 +250,20 @@ def upsert_decision(
         " (id, date, title, decision_text, why, alternatives, principle,"
         "  source_context, log_doc, status, parse_status, format_drift_notes)"
         " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (id, date, title, decision_text, why, alternatives, principle,
-         source_context, log_doc, status, parse_status, format_drift_notes),
+        (
+            id,
+            date,
+            title,
+            decision_text,
+            why,
+            alternatives,
+            principle,
+            source_context,
+            log_doc,
+            status,
+            parse_status,
+            format_drift_notes,
+        ),
     )
 
 
@@ -269,8 +284,16 @@ def upsert_edge(
         " (source_type, source_id, edge_type, target_type, target_id,"
         "  edge_subtype, confidence, context)"
         " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (source_type, source_id, edge_type, target_type, target_id,
-         edge_subtype, confidence, context),
+        (
+            source_type,
+            source_id,
+            edge_type,
+            target_type,
+            target_id,
+            edge_subtype,
+            confidence,
+            context,
+        ),
     )
 
 
@@ -334,9 +357,7 @@ def get_last_indexed_sha(conn: sqlite3.Connection) -> str | None:
     ever completed. Callers treat unknown as "rebuild from scratch" rather
     than guessing a range.
     """
-    row = conn.execute(
-        "SELECT value FROM schema_meta WHERE key = 'last_indexed_sha'"
-    ).fetchone()
+    row = conn.execute("SELECT value FROM schema_meta WHERE key = 'last_indexed_sha'").fetchone()
     return row[0] if row and row[0] else None
 
 

@@ -65,9 +65,7 @@ class TestSearchDocs:
         assert all(h.path for h in hits)  # just verify no crash
         # All returned docs should be active
         for hit in hits:
-            row = graph_db.execute(
-                "SELECT status FROM doc WHERE path=?", (hit.path,)
-            ).fetchone()
+            row = graph_db.execute("SELECT status FROM doc WHERE path=?", (hit.path,)).fetchone()
             assert row["status"] == "active"
 
     def test_scope_filter_restricts_to_prefix(self, graph_db):

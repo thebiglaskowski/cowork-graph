@@ -22,9 +22,7 @@ from pathlib import Path
 
 def ghost_projects(conn: sqlite3.Connection) -> list[dict]:
     """project/<slug> tags in frontmatter with no hub doc registered."""
-    rows = conn.execute(
-        "SELECT slug FROM project WHERE is_ghost=1 ORDER BY slug"
-    ).fetchall()
+    rows = conn.execute("SELECT slug FROM project WHERE is_ghost=1 ORDER BY slug").fetchall()
     return [{"slug": r["slug"]} for r in rows]
 
 
@@ -54,8 +52,7 @@ def ghost_people(conn: sqlite3.Connection, *, min_mentions: int = 2) -> list[dic
 def broken_links(conn: sqlite3.Connection) -> list[dict]:
     """Markdown links whose targets don't resolve to real files."""
     rows = conn.execute(
-        "SELECT source_doc, link_text, link_target"
-        " FROM broken_link ORDER BY source_doc"
+        "SELECT source_doc, link_text, link_target FROM broken_link ORDER BY source_doc"
     ).fetchall()
     return [
         {
@@ -95,8 +92,7 @@ def stale_active_docs(conn: sqlite3.Connection, *, days: int = 90) -> list[dict]
         (f"-{days}",),
     ).fetchall()
     return [
-        {"path": r["path"], "title": r["title"], "last_modified": r["last_modified"]}
-        for r in rows
+        {"path": r["path"], "title": r["title"], "last_modified": r["last_modified"]} for r in rows
     ]
 
 
@@ -208,9 +204,7 @@ def run_audit(
     from cowork_graph.suppressions import filter_findings, load_suppressions
 
     run_at = datetime.now(timezone.utc).isoformat()
-    row = conn.execute(
-        "SELECT value FROM schema_meta WHERE key='built_at'"
-    ).fetchone()
+    row = conn.execute("SELECT value FROM schema_meta WHERE key='built_at'").fetchone()
     built_at = row["value"] if row else None
 
     suppressions = load_suppressions(suppressions_path) if suppressions_path is not None else set()
@@ -333,8 +327,7 @@ def _format_finding(check: str, item: dict) -> str:
         )
     if check == "broken_links":
         return (
-            f"`{item['source_doc']}` links to `{item['link_target']}`"
-            f" (text: {item['link_text']!r})"
+            f"`{item['source_doc']}` links to `{item['link_target']}` (text: {item['link_text']!r})"
         )
     if check == "one_way_edges":
         return f"`{item['doc_a']}` — sibling edge to `{item['doc_b']}` has no reverse"

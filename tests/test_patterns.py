@@ -52,11 +52,7 @@ class TestDecisionHeading:
         assert RE_DECISION_HEADING.search(line) is None
 
     def test_multiple_headings_found(self):
-        text = (
-            f"### 2026-01-01 {EM_DASH} First\n"
-            "body\n"
-            f"### 2026-02-02 {EM_DASH} Second\n"
-        )
+        text = f"### 2026-01-01 {EM_DASH} First\nbody\n### 2026-02-02 {EM_DASH} Second\n"
         matches = list(RE_DECISION_HEADING.finditer(text))
         assert len(matches) == 2
         assert matches[0].group("title") == "First"
@@ -74,7 +70,9 @@ class TestDecisionField:
             ("Alternatives considered", "Kuzu, DuckDB."),
             ("Source / context", "Kickoff conversation."),
         )
-        found = {m.group("field"): m.group("value").strip() for m in RE_DECISION_FIELD.finditer(body)}
+        found = {
+            m.group("field"): m.group("value").strip() for m in RE_DECISION_FIELD.finditer(body)
+        }
         assert set(DECISION_REQUIRED_FIELDS) <= set(found)
 
     def test_optional_field_extracted(self):
@@ -86,7 +84,9 @@ class TestDecisionField:
 
     def test_multiline_value_captured(self):
         body = "**Decision:** We chose SQLite.\nIt is simple.\n**Why:** Because stdlib."
-        found = {m.group("field"): m.group("value").strip() for m in RE_DECISION_FIELD.finditer(body)}
+        found = {
+            m.group("field"): m.group("value").strip() for m in RE_DECISION_FIELD.finditer(body)
+        }
         assert "We chose SQLite.\nIt is simple." in found["Decision"]
         assert found["Why"] == "Because stdlib."
 
@@ -95,12 +95,10 @@ class TestDecisionField:
         assert RE_DECISION_FIELD.search(body) is None
 
     def test_value_stops_at_next_heading(self):
-        text = (
-            f"**Decision:** pick A\n"
-            f"**Why:** because\n"
-            f"### 2026-05-06 {EM_DASH} Next decision\n"
-        )
-        found = {m.group("field"): m.group("value").strip() for m in RE_DECISION_FIELD.finditer(text)}
+        text = f"**Decision:** pick A\n**Why:** because\n### 2026-05-06 {EM_DASH} Next decision\n"
+        found = {
+            m.group("field"): m.group("value").strip() for m in RE_DECISION_FIELD.finditer(text)
+        }
         assert "Next decision" not in found.get("Why", "")
 
 

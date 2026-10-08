@@ -139,6 +139,7 @@ def _cmd_build(_args: list[str]) -> int:
     # Capture HEAD *before* the walk, not after. A commit landing mid-build
     # would otherwise be recorded as indexed without its files ever being read.
     from cowork_graph import incremental as _inc
+
     target_sha = _inc.head_sha(cowork_root)
 
     # ---------------------------------------------------------------------------

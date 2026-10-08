@@ -102,9 +102,7 @@ def _should_skip(rel_path: str) -> bool:
 
 def _recompute_project_entities(conn) -> None:
     """Recompute project→entity MEMBER_OF_ENTITY edges from current doc edges."""
-    conn.execute(
-        "DELETE FROM edge WHERE edge_type='MEMBER_OF_ENTITY' AND source_type='project'"
-    )
+    conn.execute("DELETE FROM edge WHERE edge_type='MEMBER_OF_ENTITY' AND source_type='project'")
     rows = conn.execute(
         "SELECT e1.target_id AS project_slug, e2.target_id AS entity_slug, COUNT(*) AS cnt"
         " FROM edge e1"
@@ -126,9 +124,11 @@ def _recompute_project_entities(conn) -> None:
     for proj, (entity, _) in winners.items():
         db.upsert_edge(
             conn,
-            source_type="project", source_id=proj,
+            source_type="project",
+            source_id=proj,
             edge_type="MEMBER_OF_ENTITY",
-            target_type="entity", target_id=entity,
+            target_type="entity",
+            target_id=entity,
         )
 
 
@@ -187,8 +187,12 @@ def run_incremental(
             aliases = [aliases]
         conn.execute("BEGIN")
         db.upsert_person(
-            conn, slug=slug, display_name=display_name,
-            role=fm.get("role"), source_doc=rel_path, is_ghost=False,
+            conn,
+            slug=slug,
+            display_name=display_name,
+            role=fm.get("role"),
+            source_doc=rel_path,
+            is_ghost=False,
         )
         for alias in aliases:
             db.upsert_person_alias(conn, slug=slug, alias=str(alias))
@@ -210,9 +214,7 @@ def run_incremental(
 
         text = abs_path.read_text(encoding="utf-8")
         try:
-            last_mod = datetime.fromtimestamp(
-                abs_path.stat().st_mtime, tz=timezone.utc
-            ).isoformat()
+            last_mod = datetime.fromtimestamp(abs_path.stat().st_mtime, tz=timezone.utc).isoformat()
         except OSError:
             last_mod = None
 

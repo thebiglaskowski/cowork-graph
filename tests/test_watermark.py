@@ -21,8 +21,10 @@ def _git(repo, *args):
         check=True,
         capture_output=True,
         env={
-            "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
-            "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t",
+            "GIT_AUTHOR_NAME": "t",
+            "GIT_AUTHOR_EMAIL": "t@t",
+            "GIT_COMMITTER_NAME": "t",
+            "GIT_COMMITTER_EMAIL": "t@t",
             "PATH": "/usr/bin:/bin",
             "HOME": str(repo),
         },
@@ -111,6 +113,7 @@ def cli_env(repo, tmp_path, monkeypatch):
     monkeypatch.setenv("COWORK_GRAPH_DB_PATH", str(db_path))
 
     import cowork_graph.config as cfg_mod
+
     original_load = cfg_mod.load
 
     def patched_load(config_path=None):
@@ -183,9 +186,7 @@ class TestWatermarkNotAdvancedOnFailure:
 
         assert cli._cmd_build([]) == 0
         conn = db.connect(cli_env)
-        before = conn.execute(
-            "SELECT value FROM schema_meta WHERE key='built_at'"
-        ).fetchone()[0]
+        before = conn.execute("SELECT value FROM schema_meta WHERE key='built_at'").fetchone()[0]
         conn.close()
 
         (repo / "new.md").write_text("# new\n")

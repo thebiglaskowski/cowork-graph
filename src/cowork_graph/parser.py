@@ -28,7 +28,7 @@ from cowork_graph.patterns import (
 
 @dataclass
 class RelatedBlock:
-    label: str       # 'Related hubs', 'Siblings', 'Downstream', 'Upstream'
+    label: str  # 'Related hubs', 'Siblings', 'Downstream', 'Upstream'
     targets: list[str]  # root-relative normalized paths (posixpath.normpath applied)
 
 
@@ -36,7 +36,7 @@ class RelatedBlock:
 class Link:
     text: str
     raw_target: str
-    resolved: str | None   # relative path from cowork root, None if not resolvable
+    resolved: str | None  # relative path from cowork root, None if not resolvable
     is_external: bool
     is_anchor: bool
     is_broken: bool
@@ -54,22 +54,24 @@ class Decision:
     source_context: str | None
     log_doc: str
     status: str
-    parse_status: str          # 'ok' | 'format_drift'
+    parse_status: str  # 'ok' | 'format_drift'
     format_drift_notes: str | None
-    source_links: list[Link]   # links from the Source / context field
-    about_links: list[Link]    # deduplicated resolved links from all fields (for ABOUT_DECISION edges)
+    source_links: list[Link]  # links from the Source / context field
+    about_links: list[
+        Link
+    ]  # deduplicated resolved links from all fields (for ABOUT_DECISION edges)
 
 
 @dataclass
 class Mention:
     person_slug: str
     display_name: str
-    context: str   # short surrounding snippet
+    context: str  # short surrounding snippet
 
 
 @dataclass
 class ParseResult:
-    path: str                  # relative path from cowork root
+    path: str  # relative path from cowork root
     title: str | None
     status: str | None
     doc_type: str | None
@@ -80,7 +82,7 @@ class ParseResult:
     link_count: int
     last_modified: str | None
     parsed_at: str
-    parse_status: str          # 'ok' | 'partial' | 'failed'
+    parse_status: str  # 'ok' | 'partial' | 'failed'
     parse_notes: str | None
     related_blocks: list[RelatedBlock]
     links: list[Link]
@@ -112,7 +114,7 @@ def parse_doc(
 
     status = _first_tag_value(tags, "status/")
     doc_type = _first_tag_value(tags, "type/")
-    project_slugs = [t[len("project/"):].split("/")[0] for t in tags if t.startswith("project/")]
+    project_slugs = [t[len("project/") :].split("/")[0] for t in tags if t.startswith("project/")]
 
     entity = _entity_from_path(path)
 
@@ -196,14 +198,16 @@ def extract_links(body: str, *, doc_path: str, cowork_root: Path) -> list[Link]:
             except Exception:
                 is_broken = True
 
-        links.append(Link(
-            text=text,
-            raw_target=raw,
-            resolved=resolved,
-            is_external=is_external,
-            is_anchor=is_anchor,
-            is_broken=is_broken,
-        ))
+        links.append(
+            Link(
+                text=text,
+                raw_target=raw,
+                resolved=resolved,
+                is_external=is_external,
+                is_anchor=is_anchor,
+                is_broken=is_broken,
+            )
+        )
     return links
 
 
@@ -248,22 +252,24 @@ def parse_decision_log(text: str, *, log_doc: str, cowork_root: Path) -> list[De
                 seen_targets.add(lk.resolved)
                 about_links.append(lk)
 
-        decisions.append(Decision(
-            id=entry_id,
-            date=date,
-            title=title,
-            decision_text=fields.get("Decision"),
-            why=fields.get("Why"),
-            alternatives=fields.get("Alternatives considered"),
-            principle=fields.get("Principle in play"),
-            source_context=source_context_text or None,
-            log_doc=log_doc,
-            status="active",
-            parse_status=parse_status,
-            format_drift_notes=drift_notes,
-            source_links=source_links,
-            about_links=about_links,
-        ))
+        decisions.append(
+            Decision(
+                id=entry_id,
+                date=date,
+                title=title,
+                decision_text=fields.get("Decision"),
+                why=fields.get("Why"),
+                alternatives=fields.get("Alternatives considered"),
+                principle=fields.get("Principle in play"),
+                source_context=source_context_text or None,
+                log_doc=log_doc,
+                status="active",
+                parse_status=parse_status,
+                format_drift_notes=drift_notes,
+                source_links=source_links,
+                about_links=about_links,
+            )
+        )
     return decisions
 
 
@@ -295,9 +301,7 @@ def _resolve_link_target(source_doc_path: str, link_target: str) -> str:
 
     Called from every edge-target construction site so normalization is consistent.
     """
-    return posixpath.normpath(
-        posixpath.join(posixpath.dirname(source_doc_path), link_target)
-    )
+    return posixpath.normpath(posixpath.join(posixpath.dirname(source_doc_path), link_target))
 
 
 def _extract_title(body: str, path: str) -> str | None:
@@ -312,7 +316,7 @@ def _extract_title(body: str, path: str) -> str | None:
 def _first_tag_value(tags: list[str], prefix: str) -> str | None:
     for t in tags:
         if t.startswith(prefix):
-            return t[len(prefix):]
+            return t[len(prefix) :]
     return None
 
 
@@ -336,5 +340,5 @@ def _strip_frontmatter_raw(text: str) -> str:
     if text.startswith("---"):
         end = text.find("\n---", 3)
         if end != -1:
-            return text[end + 4:].lstrip("\n")
+            return text[end + 4 :].lstrip("\n")
     return text

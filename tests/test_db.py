@@ -14,15 +14,22 @@ def conn():
 class TestBootstrap:
     def test_all_tables_created(self, conn):
         tables = {
-            row[0]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
         expected = {
-            "schema_meta", "doc", "person", "person_alias", "project",
-            "vendor", "vendor_alias", "entity", "decision", "tag",
-            "edge", "broken_link", "format_drift",
+            "schema_meta",
+            "doc",
+            "person",
+            "person_alias",
+            "project",
+            "vendor",
+            "vendor_alias",
+            "entity",
+            "decision",
+            "tag",
+            "edge",
+            "broken_link",
+            "format_drift",
         }
         assert expected <= tables
 
@@ -38,9 +45,7 @@ class TestBootstrap:
         assert row is not None
 
     def test_schema_version_set(self, conn):
-        row = conn.execute(
-            "SELECT value FROM schema_meta WHERE key='schema_version'"
-        ).fetchone()
+        row = conn.execute("SELECT value FROM schema_meta WHERE key='schema_version'").fetchone()
         assert row is not None
         assert row[0] == "1"
 
@@ -152,30 +157,38 @@ class TestUpsertPerson:
     def test_person_alias(self, conn):
         conn.execute("BEGIN")
         db.upsert_person(
-            conn, slug="jane-doe", display_name="Jane Doe",
-            role=None, source_doc=None, is_ghost=False,
+            conn,
+            slug="jane-doe",
+            display_name="Jane Doe",
+            role=None,
+            source_doc=None,
+            is_ghost=False,
         )
         db.upsert_person_alias(conn, slug="jane-doe", alias="Jane")
         db.upsert_person_alias(conn, slug="jane-doe", alias="Jane")  # duplicate
         conn.execute("COMMIT")
-        count = conn.execute(
-            "SELECT COUNT(*) FROM person_alias WHERE slug='jane-doe'"
-        ).fetchone()[0]
+        count = conn.execute("SELECT COUNT(*) FROM person_alias WHERE slug='jane-doe'").fetchone()[
+            0
+        ]
         assert count == 1
 
     def test_alias_cascade_delete(self, conn):
         conn.execute("BEGIN")
         db.upsert_person(
-            conn, slug="jane-doe", display_name="Jane Doe",
-            role=None, source_doc=None, is_ghost=False,
+            conn,
+            slug="jane-doe",
+            display_name="Jane Doe",
+            role=None,
+            source_doc=None,
+            is_ghost=False,
         )
         db.upsert_person_alias(conn, slug="jane-doe", alias="Jane")
         conn.execute("COMMIT")
         conn.execute("DELETE FROM person WHERE slug='jane-doe'")
         conn.commit()
-        count = conn.execute(
-            "SELECT COUNT(*) FROM person_alias WHERE slug='jane-doe'"
-        ).fetchone()[0]
+        count = conn.execute("SELECT COUNT(*) FROM person_alias WHERE slug='jane-doe'").fetchone()[
+            0
+        ]
         assert count == 0
 
 
@@ -191,7 +204,8 @@ class TestUpsertProject:
     def test_real_project(self, conn):
         conn.execute("BEGIN")
         db.upsert_project(
-            conn, slug="cowork-graph",
+            conn,
+            slug="cowork-graph",
             hub_doc="claude-environment/cowork-graph/plan.md",
             is_ghost=False,
         )
@@ -230,9 +244,7 @@ class TestUpsertEdge:
             edge_subtype="parent_hub",
         )
         conn.execute("COMMIT")
-        row = conn.execute(
-            "SELECT * FROM edge WHERE edge_type='RELATED_TO'"
-        ).fetchone()
+        row = conn.execute("SELECT * FROM edge WHERE edge_type='RELATED_TO'").fetchone()
         assert row["edge_subtype"] == "parent_hub"
 
     def test_edge_idempotent(self, conn):
@@ -286,9 +298,7 @@ class TestUpdateMeta:
     def test_meta_updated(self, conn):
         db.update_meta(conn, built_at="2026-05-05T12:00:00", build_kind="full")
         conn.commit()
-        row = conn.execute(
-            "SELECT value FROM schema_meta WHERE key='built_at'"
-        ).fetchone()
+        row = conn.execute("SELECT value FROM schema_meta WHERE key='built_at'").fetchone()
         assert row["value"] == "2026-05-05T12:00:00"
 
 
@@ -319,7 +329,9 @@ class TestResolveGhostProjects:
         conn.execute("COMMIT")
 
         assert resolved == 1
-        row = conn.execute("SELECT is_ghost, hub_doc FROM project WHERE slug='my-project'").fetchone()
+        row = conn.execute(
+            "SELECT is_ghost, hub_doc FROM project WHERE slug='my-project'"
+        ).fetchone()
         assert row["is_ghost"] == 0
         assert row["hub_doc"] == "memory/projects/my-project.md"
 
@@ -330,7 +342,9 @@ class TestResolveGhostProjects:
         conn.execute("COMMIT")
 
         assert resolved == 0
-        row = conn.execute("SELECT is_ghost, hub_doc FROM project WHERE slug='orphan-project'").fetchone()
+        row = conn.execute(
+            "SELECT is_ghost, hub_doc FROM project WHERE slug='orphan-project'"
+        ).fetchone()
         assert row["is_ghost"] == 1
         assert row["hub_doc"] is None
 
@@ -343,8 +357,14 @@ class TestResolveGhostProjects:
         conn.execute("COMMIT")
 
         assert resolved == 1
-        assert conn.execute("SELECT is_ghost FROM project WHERE slug='has-hub'").fetchone()["is_ghost"] == 0
-        assert conn.execute("SELECT is_ghost FROM project WHERE slug='no-hub'").fetchone()["is_ghost"] == 1
+        assert (
+            conn.execute("SELECT is_ghost FROM project WHERE slug='has-hub'").fetchone()["is_ghost"]
+            == 0
+        )
+        assert (
+            conn.execute("SELECT is_ghost FROM project WHERE slug='no-hub'").fetchone()["is_ghost"]
+            == 1
+        )
 
     def test_returns_zero_when_no_projects(self, conn):
         conn.execute("BEGIN")
@@ -415,9 +435,11 @@ class TestDeleteDoc:
         self._insert_doc(conn)
         db.upsert_edge(
             conn,
-            source_type="doc", source_id="autoscriptstudio/hub.md",
+            source_type="doc",
+            source_id="autoscriptstudio/hub.md",
             edge_type="LINKS_TO",
-            target_type="doc", target_id="personal/notes.md",
+            target_type="doc",
+            target_id="personal/notes.md",
         )
         db.delete_doc(conn, "autoscriptstudio/hub.md")
         conn.execute("COMMIT")
@@ -470,22 +492,31 @@ class TestDeleteDoc:
         )
         db.upsert_edge(
             conn,
-            source_type="decision", source_id="2026-05-05-test",
+            source_type="decision",
+            source_id="2026-05-05-test",
             edge_type="ABOUT_DECISION",
-            target_type="doc", target_id="personal/notes.md",
+            target_type="doc",
+            target_id="personal/notes.md",
         )
         db.delete_doc(conn, "autoscriptstudio/decisions-log.md")
         conn.execute("COMMIT")
 
-        assert conn.execute(
-            "SELECT COUNT(*) FROM decision WHERE id='2026-05-05-test'"
-        ).fetchone()[0] == 0
-        assert conn.execute(
-            "SELECT COUNT(*) FROM format_drift WHERE artifact_id='2026-05-05-test'"
-        ).fetchone()[0] == 0
-        assert conn.execute(
-            "SELECT COUNT(*) FROM edge WHERE source_type='decision' AND source_id='2026-05-05-test'"
-        ).fetchone()[0] == 0
+        assert (
+            conn.execute("SELECT COUNT(*) FROM decision WHERE id='2026-05-05-test'").fetchone()[0]
+            == 0
+        )
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM format_drift WHERE artifact_id='2026-05-05-test'"
+            ).fetchone()[0]
+            == 0
+        )
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM edge WHERE source_type='decision' AND source_id='2026-05-05-test'"
+            ).fetchone()[0]
+            == 0
+        )
 
     def test_no_error_on_nonexistent_path(self, conn):
         conn.execute("BEGIN")
@@ -505,17 +536,25 @@ class TestRenameDoc:
         self._insert_doc(conn, "autoscriptstudio/old.md")
         db.rename_doc(conn, "autoscriptstudio/old.md", "autoscriptstudio/new.md")
         conn.execute("COMMIT")
-        assert conn.execute("SELECT 1 FROM doc WHERE path='autoscriptstudio/new.md'").fetchone() is not None
-        assert conn.execute("SELECT 1 FROM doc WHERE path='autoscriptstudio/old.md'").fetchone() is None
+        assert (
+            conn.execute("SELECT 1 FROM doc WHERE path='autoscriptstudio/new.md'").fetchone()
+            is not None
+        )
+        assert (
+            conn.execute("SELECT 1 FROM doc WHERE path='autoscriptstudio/old.md'").fetchone()
+            is None
+        )
 
     def test_updates_edge_source_id(self, conn):
         conn.execute("BEGIN")
         self._insert_doc(conn, "autoscriptstudio/old.md")
         db.upsert_edge(
             conn,
-            source_type="doc", source_id="autoscriptstudio/old.md",
+            source_type="doc",
+            source_id="autoscriptstudio/old.md",
             edge_type="LINKS_TO",
-            target_type="doc", target_id="personal/notes.md",
+            target_type="doc",
+            target_id="personal/notes.md",
         )
         db.rename_doc(conn, "autoscriptstudio/old.md", "autoscriptstudio/new.md")
         conn.execute("COMMIT")
@@ -529,9 +568,11 @@ class TestRenameDoc:
         self._insert_doc(conn, "autoscriptstudio/old.md")
         db.upsert_edge(
             conn,
-            source_type="doc", source_id="personal/hub.md",
+            source_type="doc",
+            source_id="personal/hub.md",
             edge_type="LINKS_TO",
-            target_type="doc", target_id="autoscriptstudio/old.md",
+            target_type="doc",
+            target_id="autoscriptstudio/old.md",
         )
         db.rename_doc(conn, "autoscriptstudio/old.md", "autoscriptstudio/new.md")
         conn.execute("COMMIT")

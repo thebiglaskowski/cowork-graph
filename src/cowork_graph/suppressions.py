@@ -35,17 +35,17 @@ the count.
 def _make_key(rule: str, finding: dict) -> str:
     """Derive the suppression key for a finding based on its rule name."""
     if rule == "broken_links":
-        return f'{finding["source_doc"]}::{finding["link_target"]}'
+        return f"{finding['source_doc']}::{finding['link_target']}"
     elif rule == "ghost_projects":
         return finding["slug"]
     elif rule == "ghost_people":
         return finding["slug"]
     elif rule == "one_way_edges":
-        return f'{finding["doc_a"]}::{finding["doc_b"]}'
+        return f"{finding['doc_a']}::{finding['doc_b']}"
     elif rule == "stale_active_docs":
         return finding["path"]
     elif rule == "inconsistent_hub_state":
-        return f'{finding["hub"]}::{finding["member"]}'
+        return f"{finding['hub']}::{finding['member']}"
     elif rule == "orphan_docs":
         return finding["path"]
     elif rule == "decision_drift":

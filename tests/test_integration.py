@@ -17,6 +17,7 @@ def graph_db(tmp_path, monkeypatch):
 
     # Point config at the fixture corpus
     import cowork_graph.config as cfg_mod
+
     original_load = cfg_mod.load
 
     def patched_load(config_path=None):
@@ -37,9 +38,7 @@ def graph_db(tmp_path, monkeypatch):
 
 class TestArchiveSkipped:
     def test_archive_doc_not_in_db(self, graph_db):
-        row = graph_db.execute(
-            "SELECT 1 FROM doc WHERE path LIKE '%_archive%'"
-        ).fetchone()
+        row = graph_db.execute("SELECT 1 FROM doc WHERE path LIKE '%_archive%'").fetchone()
         assert row is None
 
 
@@ -88,9 +87,7 @@ class TestEntityEdges:
 
 class TestGhostProject:
     def test_skunkworks_is_ghost(self, graph_db):
-        row = graph_db.execute(
-            "SELECT is_ghost FROM project WHERE slug='skunkworks'"
-        ).fetchone()
+        row = graph_db.execute("SELECT is_ghost FROM project WHERE slug='skunkworks'").fetchone()
         assert row is not None
         assert row["is_ghost"] == 1
 
@@ -113,9 +110,7 @@ class TestPersonNode:
     def test_full_name_mention_creates_edge(self, graph_db):
         # autoscript-hub.md body mentions "Jane Doe"
         row = graph_db.execute(
-            "SELECT 1 FROM edge"
-            " WHERE edge_type='MENTIONS'"
-            " AND target_id='jane-doe'"
+            "SELECT 1 FROM edge WHERE edge_type='MENTIONS' AND target_id='jane-doe'"
         ).fetchone()
         assert row is not None
 
@@ -160,8 +155,7 @@ class TestRelatedBlockEdges:
 class TestBrokenLinks:
     def test_broken_link_row_created(self, graph_db):
         row = graph_db.execute(
-            "SELECT link_target FROM broken_link"
-            " WHERE source_doc='broken-links-doc.md'"
+            "SELECT link_target FROM broken_link WHERE source_doc='broken-links-doc.md'"
         ).fetchone()
         assert row is not None
         assert "nonexistent" in row["link_target"]
@@ -202,6 +196,7 @@ class TestIdempotency:
         monkeypatch.setenv("COWORK_GRAPH_DB_PATH", str(db_path))
 
         import cowork_graph.config as cfg_mod
+
         original_load = cfg_mod.load
 
         def patched_load(config_path=None):
@@ -240,6 +235,7 @@ class TestThresholdExitCode:
 
         import cowork_graph.config as cfg_mod
         import cowork_graph.walker as walker_mod
+
         original_load = cfg_mod.load
 
         def patched_load(config_path=None):

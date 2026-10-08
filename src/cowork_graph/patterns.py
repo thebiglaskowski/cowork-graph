@@ -33,9 +33,7 @@ DECISION_ALL_FIELDS: frozenset[str] = DECISION_REQUIRED_FIELDS | DECISION_OPTION
 # Markdown link pattern
 # ---------------------------------------------------------------------------
 
-RE_MD_LINK = re.compile(
-    r"\[(?P<text>[^\]]+)\]\((?P<target>[^\s)]+)(?:\s+\"[^\"]*\"|\s+'[^']*')?\)"
-)
+RE_MD_LINK = re.compile(r"\[(?P<text>[^\]]+)\]\((?P<target>[^\s)]+)(?:\s+\"[^\"]*\"|\s+'[^']*')?\)")
 
 # ---------------------------------------------------------------------------
 # Related-block lines (single-line blockquotes with a bold label)

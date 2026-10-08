@@ -11,16 +11,14 @@ _WSL_REPO = "/home/joe/github/cowork-graph"
 
 # Canonical config-file paths per surface
 _CC_WSL_CONFIG = Path.home() / ".claude.json"
-_DESKTOP_CONFIG = Path(
-    "/mnt/c/Users/joela/AppData/Roaming/Claude/claude_desktop_config.json"
-)
+_DESKTOP_CONFIG = Path("/mnt/c/Users/joela/AppData/Roaming/Claude/claude_desktop_config.json")
 _CC_PS_CONFIG = Path("/mnt/c/Users/joela/.claude.json")
 
 
 @dataclass
 class InstallResult:
     surface: str
-    status: str          # 'installed' | 'updated' | 'skipped'
+    status: str  # 'installed' | 'updated' | 'skipped'
     reason: str | None = None
 
 

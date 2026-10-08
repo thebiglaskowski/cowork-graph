@@ -227,9 +227,7 @@ class TestWho:
 
         async def check():
             async with Client(mcp_app) as client:
-                result = await client.call_tool(
-                    "who", {"name": "Jane Doe", "mentions_limit": 0}
-                )
+                result = await client.call_tool("who", {"name": "Jane Doe", "mentions_limit": 0})
                 return result.data
 
         data = _run(check())

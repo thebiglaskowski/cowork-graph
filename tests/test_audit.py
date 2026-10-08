@@ -293,9 +293,16 @@ class TestRunAudit:
 
     def test_has_all_ten_check_keys(self, audit_db):
         expected = {
-            "ghost_projects", "ghost_people", "broken_links", "one_way_edges",
-            "stale_active_docs", "inconsistent_hub_state", "orphan_docs",
-            "decision_drift", "tag_drift", "decisions_format_drift",
+            "ghost_projects",
+            "ghost_people",
+            "broken_links",
+            "one_way_edges",
+            "stale_active_docs",
+            "inconsistent_hub_state",
+            "orphan_docs",
+            "decision_drift",
+            "tag_drift",
+            "decisions_format_drift",
         }
         assert expected <= set(run_audit(audit_db)["findings"])
 
@@ -356,9 +363,15 @@ class TestFormatReport:
         result = run_audit(audit_db)
         report = format_report(result)
         for label in [
-            "Ghost Projects", "Ghost People", "Broken Markdown Links",
-            "One-Way Sibling Edges", "Stale Active Docs", "Inconsistent Hub State",
-            "Orphan Docs", "Decision Drift", "Tag Drift",
+            "Ghost Projects",
+            "Ghost People",
+            "Broken Markdown Links",
+            "One-Way Sibling Edges",
+            "Stale Active Docs",
+            "Inconsistent Hub State",
+            "Orphan Docs",
+            "Decision Drift",
+            "Tag Drift",
             "Decisions-Log Format Drift",
         ]:
             assert label in report, f"Missing section label: {label}"
@@ -399,8 +412,7 @@ class TestSuppressionIntegration:
         )
         result = run_audit(audit_db, suppressions_path=sup_file)
         keys = [
-            f'{f["source_doc"]}::{f["link_target"]}'
-            for f in result["findings"]["broken_links"]
+            f"{f['source_doc']}::{f['link_target']}" for f in result["findings"]["broken_links"]
         ]
         assert "broken-links-doc.md::nonexistent.md" not in keys
 

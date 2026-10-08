@@ -22,6 +22,7 @@ from cowork_graph.incremental import (
 # _parse_name_status — pure unit tests (no subprocess)
 # ---------------------------------------------------------------------------
 
+
 class TestParseNameStatus:
     def test_added(self):
         result = _parse_name_status("A\tpersonal/new.md\n")
@@ -64,6 +65,7 @@ class TestParseNameStatus:
 # _should_skip — pure unit tests
 # ---------------------------------------------------------------------------
 
+
 class TestShouldSkip:
     def test_markdown_not_skipped(self):
         assert _should_skip("personal/hub.md") is False
@@ -85,6 +87,7 @@ class TestShouldSkip:
 # _recompute_project_entities — in-memory DB
 # ---------------------------------------------------------------------------
 
+
 class TestRecomputeProjectEntities:
     def test_picks_majority_entity(self):
         conn = db.connect(":memory:")
@@ -95,20 +98,46 @@ class TestRecomputeProjectEntities:
                 "INSERT OR IGNORE INTO doc (path, parsed_at, parse_status) VALUES (?, ?, ?)",
                 (f"autoscriptstudio/doc{i}.md", "2026-05-05T00:00:00", "ok"),
             )
-            db.upsert_edge(conn, source_type="doc", source_id=f"autoscriptstudio/doc{i}.md",
-                           edge_type="MEMBER_OF_PROJECT", target_type="project", target_id="alpha")
-            db.upsert_edge(conn, source_type="doc", source_id=f"autoscriptstudio/doc{i}.md",
-                           edge_type="MEMBER_OF_ENTITY", target_type="entity", target_id="autoscriptstudio")
+            db.upsert_edge(
+                conn,
+                source_type="doc",
+                source_id=f"autoscriptstudio/doc{i}.md",
+                edge_type="MEMBER_OF_PROJECT",
+                target_type="project",
+                target_id="alpha",
+            )
+            db.upsert_edge(
+                conn,
+                source_type="doc",
+                source_id=f"autoscriptstudio/doc{i}.md",
+                edge_type="MEMBER_OF_ENTITY",
+                target_type="entity",
+                target_id="autoscriptstudio",
+            )
         # One doc in project 'alpha' from entity 'personal'
         conn.execute(
             "INSERT OR IGNORE INTO doc (path, parsed_at, parse_status) VALUES (?, ?, ?)",
             ("personal/note.md", "2026-05-05T00:00:00", "ok"),
         )
-        db.upsert_edge(conn, source_type="doc", source_id="personal/note.md",
-                       edge_type="MEMBER_OF_PROJECT", target_type="project", target_id="alpha")
-        db.upsert_edge(conn, source_type="doc", source_id="personal/note.md",
-                       edge_type="MEMBER_OF_ENTITY", target_type="entity", target_id="personal")
-        conn.execute("INSERT OR IGNORE INTO project (slug, hub_doc, is_ghost) VALUES ('alpha', NULL, 1)")
+        db.upsert_edge(
+            conn,
+            source_type="doc",
+            source_id="personal/note.md",
+            edge_type="MEMBER_OF_PROJECT",
+            target_type="project",
+            target_id="alpha",
+        )
+        db.upsert_edge(
+            conn,
+            source_type="doc",
+            source_id="personal/note.md",
+            edge_type="MEMBER_OF_ENTITY",
+            target_type="entity",
+            target_id="personal",
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO project (slug, hub_doc, is_ghost) VALUES ('alpha', NULL, 1)"
+        )
         conn.execute("COMMIT")
 
         conn.execute("BEGIN")
@@ -138,6 +167,7 @@ class TestRecomputeProjectEntities:
 # ---------------------------------------------------------------------------
 # run_incremental — integration tests using a real git repo in tmp_path
 # ---------------------------------------------------------------------------
+
 
 def _git(args: list[str], cwd: Path) -> str:
     return subprocess.check_output(
@@ -264,9 +294,7 @@ class TestRunIncrementalModifyDoc:
             conn.close()
 
         conn = db.connect(db_path)
-        row = conn.execute(
-            "SELECT title FROM doc WHERE path='autoscriptstudio/hub.md'"
-        ).fetchone()
+        row = conn.execute("SELECT title FROM doc WHERE path='autoscriptstudio/hub.md'").fetchone()
         conn.close()
         assert row["title"] == "Updated Hub"
 
@@ -340,9 +368,7 @@ class TestRunIncrementalDeleteDoc:
             conn.close()
 
         conn = db.connect(db_path)
-        row = conn.execute(
-            "SELECT 1 FROM doc WHERE path='autoscriptstudio/hub.md'"
-        ).fetchone()
+        row = conn.execute("SELECT 1 FROM doc WHERE path='autoscriptstudio/hub.md'").fetchone()
         conn.close()
         assert row is None
 
@@ -362,8 +388,14 @@ class TestRunIncrementalRenameDoc:
             conn.close()
 
         conn = db.connect(db_path)
-        assert conn.execute("SELECT 1 FROM doc WHERE path='autoscriptstudio/main-hub.md'").fetchone() is not None
-        assert conn.execute("SELECT 1 FROM doc WHERE path='autoscriptstudio/hub.md'").fetchone() is None
+        assert (
+            conn.execute("SELECT 1 FROM doc WHERE path='autoscriptstudio/main-hub.md'").fetchone()
+            is not None
+        )
+        assert (
+            conn.execute("SELECT 1 FROM doc WHERE path='autoscriptstudio/hub.md'").fetchone()
+            is None
+        )
         conn.close()
 
 

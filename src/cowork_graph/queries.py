@@ -143,8 +143,7 @@ def search_docs(
 def get_doc(conn: sqlite3.Connection, path: str) -> DocDetail | None:
     """Return doc metadata plus inbound and outbound edges."""
     row = conn.execute(
-        "SELECT path, title, status, doc_type, word_count, last_modified"
-        " FROM doc WHERE path = ?",
+        "SELECT path, title, status, doc_type, word_count, last_modified FROM doc WHERE path = ?",
         (path,),
     ).fetchone()
     if row is None:
@@ -294,9 +293,7 @@ def list_blocked(conn: sqlite3.Connection, *, limit: int | None = None) -> list[
 
 def project_state(conn: sqlite3.Connection, slug: str) -> ProjectState | None:
     """Full subgraph for a project: hub, members, status mix, blockers, decisions."""
-    row = conn.execute(
-        "SELECT slug, hub_doc FROM project WHERE slug = ?", (slug,)
-    ).fetchone()
+    row = conn.execute("SELECT slug, hub_doc FROM project WHERE slug = ?", (slug,)).fetchone()
     if row is None:
         return None
 
@@ -484,6 +481,7 @@ def audit(
 ) -> dict:
     """Run all ten drift-detection checks and return structured findings."""
     from cowork_graph import audit as audit_mod
+
     return audit_mod.run_audit(
         conn,
         write_report=write_report,
