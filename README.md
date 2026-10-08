@@ -142,6 +142,8 @@ After=network.target
 [Service]
 ExecStart=%h/.local/bin/uv run --directory %h/github/cowork-graph --group mcp cowork-graph mcp serve --http
 Restart=on-failure
+# uv exits 143 on SIGTERM; without this every clean stop logs as "Failed".
+SuccessExitStatus=143
 
 [Install]
 WantedBy=default.target
