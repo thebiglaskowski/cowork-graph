@@ -5,11 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-
 from cowork_graph.install import (
-    InstallResult,
     _SERVER_NAME,
     _WSL_REPO,
+    InstallResult,
     _cc_ps_entry,
     _cc_wsl_entry,
     _desktop_entry,

@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from cowork_graph import config as cfg_mod
 from cowork_graph import db, parser
 from cowork_graph.walker import walk
-
 
 _LABEL_TO_EDGE: dict[str, tuple[str, str]] = {
     "Related hubs": ("RELATED_TO", "parent_hub"),
@@ -133,7 +132,7 @@ def _cmd_build(_args: list[str]) -> int:
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     conn = db.connect(db_path)
-    built_at = datetime.now(timezone.utc).isoformat()
+    built_at = datetime.now(UTC).isoformat()
     t0 = time.monotonic()
 
     # Capture HEAD *before* the walk, not after. A commit landing mid-build
@@ -184,11 +183,11 @@ def _cmd_build(_args: list[str]) -> int:
         n_docs += 1
         text = abs_path.read_text(encoding="utf-8")
         try:
-            last_mod = datetime.fromtimestamp(abs_path.stat().st_mtime, tz=timezone.utc).isoformat()
+            last_mod = datetime.fromtimestamp(abs_path.stat().st_mtime, tz=UTC).isoformat()
         except OSError:
             last_mod = None
 
-        parsed_at = datetime.now(timezone.utc).isoformat()
+        parsed_at = datetime.now(UTC).isoformat()
 
         is_decision_log = abs_path.name == "decisions-log.md"
 
@@ -218,7 +217,7 @@ def _cmd_build(_args: list[str]) -> int:
                 votes_acc=project_entity_votes,
             )
             conn.execute("COMMIT")
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — one bad doc must not abort the run
             conn.execute("ROLLBACK")
             n_failed += 1
             print(f"Warning: failed to write {rel_path}: {exc}", file=sys.stderr)
@@ -271,7 +270,8 @@ def _cmd_build(_args: list[str]) -> int:
 
 def _cmd_audit(args: list[str]) -> int:
     import json
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     from cowork_graph import audit as audit_mod
 
     write = "--write" in args
@@ -301,7 +301,7 @@ def _cmd_audit(args: list[str]) -> int:
         from cowork_graph.audit_html import write_html_report
 
         audits_dir.mkdir(parents=True, exist_ok=True)
-        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        date_str = datetime.now(UTC).strftime("%Y-%m-%d")
         html_path = audits_dir / f"{date_str}-audit.html"
         write_html_report(result, cfg.db_path, html_path, cowork_root=cfg.cowork_root)
         print(f"HTML report written: {html_path}")
@@ -568,7 +568,7 @@ def _cmd_update(args: list[str]) -> int:
         # went unnoticed. last_indexed_sha == HEAD is the real health check.
         db.update_meta(
             conn,
-            built_at=datetime.now(timezone.utc).isoformat(),
+            built_at=datetime.now(UTC).isoformat(),
             build_kind="incremental",
         )
         conn.commit()

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 _SKIP_DIRS = frozenset({".git", ".obsidian", "_archive", "node_modules", ".venv", "__pycache__"})
 _SKIP_NAMES = frozenset({".projects"})

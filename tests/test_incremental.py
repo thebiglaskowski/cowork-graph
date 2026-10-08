@@ -17,7 +17,6 @@ from cowork_graph.incremental import (
     run_incremental,
 )
 
-
 # ---------------------------------------------------------------------------
 # _parse_name_status — pure unit tests (no subprocess)
 # ---------------------------------------------------------------------------
@@ -215,8 +214,8 @@ def corpus(tmp_path):
 @pytest.fixture
 def incremental_db(corpus, tmp_path):
     """Full-build DB from the initial corpus commit."""
-    from cowork_graph.cli import _cmd_build
     import cowork_graph.config as cfg_mod
+    from cowork_graph.cli import _cmd_build
 
     db_path = tmp_path / "graph.db"
     original_load = cfg_mod.load

@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from cowork_graph import db, parser
@@ -25,6 +25,7 @@ def is_merge_commit(cowork_root: Path) -> bool:
         ["git", "rev-parse", "--verify", "HEAD^2"],
         cwd=cowork_root,
         capture_output=True,
+        check=False,
     )
     return result.returncode == 0
 
@@ -36,6 +37,7 @@ def head_sha(cowork_root: Path) -> str | None:
         cwd=cowork_root,
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         return None
@@ -55,6 +57,7 @@ def commit_exists(sha: str, cowork_root: Path) -> bool:
         ["git", "cat-file", "-e", f"{sha}^{{commit}}"],
         cwd=cowork_root,
         capture_output=True,
+        check=False,
     )
     return result.returncode == 0
 
@@ -214,11 +217,11 @@ def run_incremental(
 
         text = abs_path.read_text(encoding="utf-8")
         try:
-            last_mod = datetime.fromtimestamp(abs_path.stat().st_mtime, tz=timezone.utc).isoformat()
+            last_mod = datetime.fromtimestamp(abs_path.stat().st_mtime, tz=UTC).isoformat()
         except OSError:
             last_mod = None
 
-        parsed_at = datetime.now(timezone.utc).isoformat()
+        parsed_at = datetime.now(UTC).isoformat()
         is_decision_log = abs_path.name == "decisions-log.md"
         _, body_text, _, _ = parser.parse_frontmatter(text)
         result = parser.parse_doc(
@@ -248,7 +251,7 @@ def run_incremental(
                 n_modified += 1
             else:
                 n_added += 1
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — one bad doc must not abort the run
             conn.execute("ROLLBACK")
             n_failed += 1
             print(f"Warning: failed to write {rel_path}: {exc}", file=sys.stderr)

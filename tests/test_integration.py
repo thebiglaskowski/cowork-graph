@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+
 from cowork_graph import db
 from cowork_graph.cli import _cmd_build
 
@@ -251,8 +252,7 @@ class TestThresholdExitCode:
         real_walk = walker_mod.walk
 
         def boom_walk(root):
-            for item in real_walk(root):
-                yield item
+            yield from real_walk(root)
             # yield a fake path that will cause a read failure
             fake = tmp_path / "fake.md"
             fake.write_text("---\nbad: [\n---\nbody")

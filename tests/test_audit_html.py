@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html.parser
+from datetime import UTC
 from pathlib import Path
 
 import pytest
@@ -62,7 +63,22 @@ _FIXTURE_RESULT: dict = {
 # ---------------------------------------------------------------------------
 
 _VOID_ELEMENTS = frozenset(
-    "area base br col embed hr img input link meta param source track wbr".split()
+    [
+        "area",
+        "base",
+        "br",
+        "col",
+        "embed",
+        "hr",
+        "img",
+        "input",
+        "link",
+        "meta",
+        "param",
+        "source",
+        "track",
+        "wbr",
+    ]
 )
 
 
@@ -240,7 +256,7 @@ class TestIdempotency:
 class TestCliIntegration:
     def test_html_flag_creates_file(self, tmp_path: Path) -> None:
         """--html creates an HTML file at the expected path and includes the H1."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         import cowork_graph.config as cfg_mod
         from cowork_graph.cli import _cmd_audit, _cmd_build
@@ -266,7 +282,7 @@ class TestCliIntegration:
         finally:
             cfg_mod.load = original_load
 
-        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        date_str = datetime.now(UTC).strftime("%Y-%m-%d")
         html_path = (
             audit_root / "claude-environment" / "cowork-graph" / "audits" / f"{date_str}-audit.html"
         )
@@ -276,7 +292,7 @@ class TestCliIntegration:
 
     def test_write_produces_both_files(self, tmp_path: Path) -> None:
         """--write now produces both markdown and HTML by default."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         import cowork_graph.config as cfg_mod
         from cowork_graph.cli import _cmd_audit, _cmd_build
@@ -301,14 +317,14 @@ class TestCliIntegration:
         finally:
             cfg_mod.load = original_load
 
-        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        date_str = datetime.now(UTC).strftime("%Y-%m-%d")
         audits = audit_root / "claude-environment" / "cowork-graph" / "audits"
         assert (audits / f"{date_str}-audit.md").exists(), "markdown must be written"
         assert (audits / f"{date_str}-audit.html").exists(), "HTML must be written by default"
 
     def test_write_no_html_produces_markdown_only(self, tmp_path: Path) -> None:
         """--write --no-html writes only the markdown file."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         import cowork_graph.config as cfg_mod
         from cowork_graph.cli import _cmd_audit, _cmd_build
@@ -333,7 +349,7 @@ class TestCliIntegration:
         finally:
             cfg_mod.load = original_load
 
-        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        date_str = datetime.now(UTC).strftime("%Y-%m-%d")
         audits = audit_root / "claude-environment" / "cowork-graph" / "audits"
         assert (audits / f"{date_str}-audit.md").exists(), "markdown must be written"
         assert not (audits / f"{date_str}-audit.html").exists(), (

@@ -18,7 +18,7 @@ CORPUS = Path(__file__).parent / "fixtures" / "corpus"
 class TestParseFrontmatter:
     def test_parses_tags(self):
         text = "---\ntags:\n  - status/active\n  - type/hub\n---\n# Body"
-        fm, body, status, notes = parse_frontmatter(text)
+        fm, _body, status, notes = parse_frontmatter(text)
         assert fm["tags"] == ["status/active", "type/hub"]
         assert status == "ok"
         assert notes is None
@@ -31,14 +31,14 @@ class TestParseFrontmatter:
 
     def test_broken_yaml_returns_partial(self):
         text = "---\ntags: [unclosed\n---\n# Body"
-        fm, body, status, notes = parse_frontmatter(text)
+        _fm, body, status, notes = parse_frontmatter(text)
         assert status == "partial"
         assert notes is not None
         assert "# Body" in body
 
     def test_no_frontmatter_returns_ok(self):
         text = "# Just a heading\n\nNo frontmatter."
-        fm, body, status, notes = parse_frontmatter(text)
+        fm, body, status, _notes = parse_frontmatter(text)
         assert status == "ok"
         assert fm == {}
         assert "# Just a heading" in body

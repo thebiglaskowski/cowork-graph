@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pytest
+
 from cowork_graph import db
 from cowork_graph.cli import _cmd_build
 from cowork_graph.queries import (

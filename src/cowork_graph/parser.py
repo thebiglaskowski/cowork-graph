@@ -20,7 +20,6 @@ from cowork_graph.patterns import (
     RE_RELATED_BLOCK,
 )
 
-
 # ---------------------------------------------------------------------------
 # Return types
 # ---------------------------------------------------------------------------
@@ -195,7 +194,7 @@ def extract_links(body: str, *, doc_path: str, cowork_root: Path) -> list[Link]:
                 else:
                     is_broken = True
                     resolved = resolved_rel
-            except Exception:
+            except Exception:  # noqa: BLE001 — any unresolvable path is a broken link
                 is_broken = True
 
         links.append(

@@ -3,8 +3,8 @@
 from pathlib import Path
 
 import pytest
+
 from cowork_graph import db
-from cowork_graph.cli import _cmd_build
 from cowork_graph.audit import (
     broken_links,
     decision_drift,
@@ -19,6 +19,7 @@ from cowork_graph.audit import (
     stale_active_docs,
     tag_drift,
 )
+from cowork_graph.cli import _cmd_build
 
 CORPUS = Path(__file__).parent / "fixtures" / "corpus"
 

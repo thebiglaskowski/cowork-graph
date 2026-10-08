@@ -159,7 +159,7 @@ def resolve_ghost_projects(conn: sqlite3.Connection) -> int:
         if not candidates:
             continue
         preferred = f"memory/projects/{slug}.md"
-        hub_path = preferred if preferred in candidates else sorted(candidates)[0]
+        hub_path = preferred if preferred in candidates else min(candidates)
         conn.execute(
             "UPDATE project SET is_ghost=0, hub_doc=? WHERE slug=?",
             (hub_path, slug),
