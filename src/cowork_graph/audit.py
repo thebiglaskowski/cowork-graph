@@ -82,6 +82,32 @@ def one_way_edges(conn: sqlite3.Connection) -> list[dict]:
     return [{"doc_a": r["doc_a"], "doc_b": r["doc_b"]} for r in rows]
 
 
+# Evergreen classes skipped by stale_active_docs (decision 2026-10-16, after a
+# bulk sweep archived 133 docs straight off this list). Paths are cowork-root
+# relative, posix-style, matched with SQL LIKE.
+STALE_EXEMPT_TYPES = ("journal",)
+STALE_EXEMPT_PATH_LIKE = (
+    "CLAUDE.md",
+    "%/CLAUDE.md",
+    "README.md",
+    "%/README.md",
+    "%/_templates/%",
+    "memory/people/%",
+    "personal/00-reference/principles/%",
+)
+_IS_PROJECT_HUB = "EXISTS (SELECT 1 FROM project p WHERE p.hub_doc = d.path)"
+_STALE_EXEMPT = (
+    f"(NOT {_IS_PROJECT_HUB} AND ("
+    # COALESCE: doc_type is NULL on most leaves, and a NULL here would make the
+    # whole NOT (...) NULL and silently drop the row.
+    "COALESCE(d.doc_type, '') IN ('hub'"
+    + "".join(f", '{t}'" for t in STALE_EXEMPT_TYPES)
+    + ")"
+    + "".join(f" OR d.path LIKE '{pat}'" for pat in STALE_EXEMPT_PATH_LIKE)
+    + "))"
+)
+
+
 def stale_active_docs(conn: sqlite3.Connection, *, days: int = 90) -> list[dict]:
     """Effectively-active docs with no edits in the last `days` days, judged per hub.
 
@@ -90,6 +116,13 @@ def stale_active_docs(conn: sqlite3.Connection, *, days: int = 90) -> list[dict]
     candidate. Hub-governed leaves are never flagged on their own; leaves with no
     governing hub still carry hand-maintained status and are judged by their own
     mtime. See plan.md "Hub-derived status".
+
+    Evergreen docs are exempt, because going untouched is what a stable doc
+    looks like rather than a sign it is finished: scope/area hubs that are no
+    project's hub, journal entries, CLAUDE.md and README.md indexes, templates,
+    people files and the principles library (see STALE_EXEMPT_*). Project hubs
+    are never exempt, since a quiet project is exactly the parking signal this
+    check exists for. Findings are a triage list for a human, not a flip list.
     """
     rows = conn.execute(
         "SELECT path, title, last_modified FROM ("
@@ -104,6 +137,7 @@ def stale_active_docs(conn: sqlite3.Connection, *, days: int = 90) -> list[dict]
         "    WHERE p.hub_doc = d.path))"
         "  ELSE d.last_modified END AS last_modified"
         f" FROM doc d WHERE {EFFECTIVE_STATUS} = 'active' AND NOT {HAS_GOVERNING_HUB}"
+        f" AND NOT {_STALE_EXEMPT}"
         ")"
         " WHERE last_modified IS NOT NULL"
         " AND substr(last_modified, 1, 10) < date('now', ? || ' days')"

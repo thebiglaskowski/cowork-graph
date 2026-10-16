@@ -389,3 +389,33 @@ class TestEffectiveStatus:
         # alpha/hub is old but alpha/active.md is fresh, so the project is live.
         # gamma is old end to end. Hub-governed leaves are never flagged alone.
         assert stale == {"gamma/hub.md", "ghost/leaf.md", "loose-old.md"}
+
+    def test_stale_skips_evergreen_docs_but_not_project_hubs(self, status_db):
+        from cowork_graph.audit import stale_active_docs
+
+        evergreen = [
+            ("personal/03-health/health-hub.md", "hub"),  # area hub, no project
+            ("personal/05-journal/2026/2026-05-07.md", "journal"),
+            ("nexus-legacy-holdings/CLAUDE.md", None),
+            ("memory/README.md", None),
+            ("personal/05-journal/_templates/daily-note-template.md", None),
+            ("memory/people/aj.md", None),
+            ("personal/00-reference/principles/strategy/sun-tzu-art-of-war.md", None),
+        ]
+        for path, doc_type in evergreen:
+            status_db.execute(
+                "INSERT INTO doc (path, title, status, doc_type, last_modified, parsed_at,"
+                " parse_status) VALUES (?, ?, 'active', ?, ?, ?, 'ok')",
+                (path, path, doc_type, OLD, NEW),
+            )
+        # A README that is a project's hub keeps its parking signal.
+        status_db.execute(
+            "INSERT INTO doc (path, title, status, doc_type, last_modified, parsed_at,"
+            " parse_status) VALUES ('delta/README.md', 'd', 'active', 'hub', ?, ?, 'ok')",
+            (OLD, NEW),
+        )
+        status_db.execute(
+            "INSERT INTO project (slug, hub_doc, is_ghost) VALUES ('delta', 'delta/README.md', 0)"
+        )
+        stale = {r["path"] for r in stale_active_docs(status_db)}
+        assert stale == {"gamma/hub.md", "ghost/leaf.md", "loose-old.md", "delta/README.md"}
