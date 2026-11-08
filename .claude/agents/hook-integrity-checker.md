@@ -7,7 +7,7 @@ You are the sync-hook integrity checker for cowork-graph. You verify installed s
 
 ## Why this is invisible to normal review
 
-`scripts/install-hook.sh` installs hooks into a *different repository* — `/mnt/c/Users/joela/cowork/.git/hooks/` — and `.git/hooks` is not tracked by git. So:
+`scripts/install-hook.sh` installs hooks into a *different repository* — `/home/joe/Projects/cowork/.git/hooks/` — and `.git/hooks` is not tracked by git. So:
 
 - The installed hooks never appear in any diff, on either repo.
 - They must be installed **once per clone**. Only SKYNET has one; SKYNET-DUEX is a remote-access client and is not mirrored, so do not flag it.

@@ -7,8 +7,8 @@ You are the documentation-drift reviewer for cowork-graph. This project is one h
 
 | Side | Path | Owns |
 |---|---|---|
-| WSL | `~/github/cowork-graph/` — `README.md`, `CLAUDE.md` | Code-side conventions, runtime usage, phase status |
-| cowork | `/mnt/c/Users/joela/cowork/claude-environment/cowork-graph/plan.md` | Frozen schema, design decisions, audit reports |
+| WSL | `~/Projects/cowork-graph/` — `README.md`, `CLAUDE.md` | Code-side conventions, runtime usage, phase status |
+| cowork | `/home/joe/Projects/cowork/claude-environment/cowork-graph/plan.md` | Frozen schema, design decisions, audit reports |
 
 **The cowork side wins all design disputes.** The WSL repo implements the plan; it is not the source of truth for it. When the two disagree on a *design* question, the WSL doc is wrong. When they disagree on a *measured* fact (test count, timings), reality wins over both.
 

@@ -3,7 +3,7 @@
 #
 # Usage: sh scripts/install-hook.sh [/path/to/cowork]
 #
-# Defaults to /mnt/c/Users/joela/cowork if no argument is given.
+# Defaults to /home/joe/Projects/cowork if no argument is given.
 # Safe to re-run — idempotent per hook; will not double-insert a hook line.
 # Appends to an existing hook (e.g. git-lfs) rather than overwriting it.
 #
@@ -34,7 +34,7 @@
 set -e
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-COWORK_DIR="${1:-/mnt/c/Users/joela/cowork}"
+COWORK_DIR="${1:-/home/joe/Projects/cowork}"
 
 if [ ! -d "$COWORK_DIR/.git" ]; then
     echo "Error: not a git repository: $COWORK_DIR" >&2

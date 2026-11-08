@@ -15,7 +15,7 @@ from pathlib import Path
 _CONFIG_DIR = Path.home() / ".config" / "cowork-graph"
 _CONFIG_PATH = _CONFIG_DIR / "config.toml"
 
-_DEFAULT_COWORK_ROOT = "/mnt/c/Users/joela/cowork"
+_DEFAULT_COWORK_ROOT = "/home/joe/Projects/cowork"
 _DEFAULT_DB_PATH = "~/.local/share/cowork-graph/graph.db"
 _DEFAULT_LOG_PATH = "~/.local/share/cowork-graph/parse.log"
 _DEFAULT_FAIL_THRESHOLD_PCT = 5
@@ -25,7 +25,7 @@ _DEFAULT_TOML = """\
 # Generated on first run. Edit as needed.
 
 # Absolute path to the root of the cowork repository on this machine.
-# cowork_root = "/mnt/c/Users/joela/cowork"
+# cowork_root = "/home/joe/Projects/cowork"
 
 # Path to the SQLite graph database. ~ is expanded.
 # db_path = "~/.local/share/cowork-graph/graph.db"

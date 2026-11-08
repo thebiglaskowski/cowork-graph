@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 _SERVER_NAME = "cowork-graph"
-_WSL_REPO = "/home/joe/github/cowork-graph"
+_WSL_REPO = "/home/joe/Projects/cowork-graph"
 
 # Canonical config-file paths per surface
 _CC_WSL_CONFIG = Path.home() / ".claude.json"

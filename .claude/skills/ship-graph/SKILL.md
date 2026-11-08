@@ -26,7 +26,7 @@ Restarting is safe for connected clients: the HTTP transport runs `stateless_htt
 
 ## Steps
 
-Run these in order **from `~/github/cowork-graph`**. Report each step's actual output. If any step fails, **stop and report** — do not continue to the next step, and do not describe the deploy as done.
+Run these in order **from `~/Projects/cowork-graph`**. Report each step's actual output. If any step fails, **stop and report** — do not continue to the next step, and do not describe the deploy as done.
 
 ### 1. Tests
 

@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Canonical plan
 
 The frozen Phase 1 schema and all design decisions live in the **cowork side** of this pair:
-`cowork/claude-environment/cowork-graph/plan.md` (UNC: `\\wsl$\Ubuntu\mnt\c\Users\joela\cowork\claude-environment\cowork-graph\plan.md`).
+`cowork/claude-environment/cowork-graph/plan.md`.
 
 Before writing parser code, MCP server code, or schema migrations, load that doc. The cowork side wins all design disputes — the WSL repo is the implementation of it, not the source of truth.
 

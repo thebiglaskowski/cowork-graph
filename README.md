@@ -1,11 +1,11 @@
 ---
 pair:
   cowork: claude-environment/cowork-graph/plan.md
-  wsl: ~/github/cowork-graph/
-  unc: \\wsl$\Ubuntu\home\joe\github\cowork-graph\
+  code: ~/Projects/cowork-graph/
+  host: skynet (Omarchy)
   division:
     cowork: planning artifacts, schema reference, audit reports, decision logs
-    wsl: source code (Python parser, MCP server, CLI), tests, dependencies, build artifacts, install scripts
+    code: source code (Python parser, MCP server, CLI), tests, dependencies, build artifacts, install scripts
 ---
 
 ![cowork-graph](assets/graph.png)
@@ -28,7 +28,7 @@ Measured 2026-08-21:
 - Three sync hooks live in `cowork/.git/hooks/` — `post-commit`, `post-merge`, `post-rewrite`
 - Served by the `cowork-graph-mcp` systemd user unit on `127.0.0.1:8765`
 
-The rebuild cost is why the sync hooks matter: the corpus lives on a Windows mount (`/mnt/c`), so a full walk is minutes, not seconds. Incremental updates keep commits effectively free, and the watermark means a missed run catches up rather than leaving a permanent gap.
+The sync hooks keep the graph current without a full walk: incremental updates keep commits effectively free, and the watermark means a missed run catches up rather than leaving a permanent gap. (On the old WSL host the corpus sat on a Windows mount and a full rebuild took ~354s; on native disk it takes ~13s for 709 docs, measured 2026-11-07.)
 
 ## Install
 
@@ -79,7 +79,7 @@ After building once, wire the git hooks so the graph stays current automatically
 sh scripts/install-hook.sh [/path/to/cowork]
 ```
 
-Defaults to `/mnt/c/Users/joela/cowork`. Three hooks get installed, each backgrounding a `cowork-graph update` run:
+Defaults to `/home/joe/Projects/cowork`. Three hooks get installed, each backgrounding a `cowork-graph update` run:
 
 | Hook | `--since` | Covers |
 |------|-----------|--------|
@@ -140,9 +140,9 @@ Description=cowork-graph MCP server (shared HTTP)
 After=network.target
 
 [Service]
-ExecStart=%h/.local/bin/uv run --directory %h/github/cowork-graph --group mcp cowork-graph mcp serve --http
+ExecStart=%h/Projects/cowork-graph/.venv/bin/cowork-graph mcp serve --http
 Restart=on-failure
-# uv exits 143 on SIGTERM; without this every clean stop logs as "Failed".
+# A SIGTERM stop exits 143; without this every clean stop logs as "Failed".
 SuccessExitStatus=143
 
 [Install]

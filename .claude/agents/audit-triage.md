@@ -39,7 +39,7 @@ Every finding is exactly one of these, and they are three different kinds of wor
 The allowlist lives cowork-side at:
 
 ```
-/mnt/c/Users/joela/cowork/claude-environment/cowork-graph/audits/suppressions.md
+/home/joe/Projects/cowork/claude-environment/cowork-graph/audits/suppressions.md
 ```
 
 YAML frontmatter, `suppressions:` list, matched on `(rule, key)`. The key is rule-specific — get it exactly right or the entry silently does nothing:

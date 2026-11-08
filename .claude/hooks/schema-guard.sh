@@ -37,7 +37,7 @@ case "$FILE_PATH" in
   *) exit 0 ;;
 esac
 
-PLAN_WSL="/mnt/c/Users/joela/cowork/claude-environment/cowork-graph/plan.md"
+PLAN_WSL="/home/joe/Projects/cowork/claude-environment/cowork-graph/plan.md"
 
 cat <<MSG
 BLOCKED: src/cowork_graph/schema.sql is the frozen Phase 1 graph schema.
