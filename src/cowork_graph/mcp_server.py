@@ -1,4 +1,9 @@
-"""FastMCP server — eight tools over stdio (default) or a shared HTTP server."""
+"""FastMCP server — twelve tools over stdio (default) or a shared HTTP server.
+
+Eight graph tools (Phase 3) plus four semantic-layer tools (plan.md Phase 8):
+semantic_search, read_document, save_memory, recall_memories. The semantic
+tools load their models lazily, so graph-only use never pays for them.
+"""
 
 from __future__ import annotations
 
@@ -155,6 +160,102 @@ def audit(write_report: bool = False) -> dict:
         conn.close()
 
 
+# ---------------------------------------------------------------------------
+# Semantic layer (Phase 8)
+# ---------------------------------------------------------------------------
+
+
+def _semantic():
+    from cowork_graph import semantic
+
+    if not semantic.available():
+        raise RuntimeError(
+            f"semantic layer not installed on this server — {semantic.MISSING_DEPS_HINT}"
+        )
+    from cowork_graph.semantic.models import shared
+    from cowork_graph.semantic.pii import Detector
+
+    cfg = cfg_mod.load()
+    return (
+        cfg,
+        shared(cfg.semantic.model_cache),
+        Detector(cfg.semantic.pii_detect, cfg.semantic.pii_device),
+    )
+
+
+@mcp.tool
+def semantic_search(
+    query: str,
+    scope: str | None = None,
+    project: str | None = None,
+    status: str | None = None,
+    kind: str | None = None,
+    path_prefix: str | None = None,
+    since: str | None = None,
+    limit: int = 8,
+) -> dict:
+    """Meaning-based search over the whole cowork corpus — markdown plus PDFs, Word/Excel files and OCR'd scans and images — blending vector similarity with keyword matching and a cross-encoder rerank. Use when you need passages that answer a question, not just docs whose words match (search_docs is the exact-word title/body search). Each hit carries the graph's effective status and projects for markdown docs. Filters: scope (entity folder, e.g. personal; prefix with '-' to exclude, e.g. '-personal'), project slug, status (effective status — markdown only), kind (md, pdf, image, office, text), path_prefix, since (ISO date, last commit or modification). Returns up to `limit` (default 8, max 30) passages, at most 3 per file, with 0–1 scores; scores under ~0.5 usually mean nothing relevant was found. Recorded identifiers (account numbers, keys, SSNs, contact details) appear masked as [pii …last4]."""
+    from cowork_graph.semantic import search
+
+    cfg, models, _ = _semantic()
+    return search.search(
+        cfg,
+        models,
+        query,
+        scope=scope,
+        project=project,
+        status=status,
+        kind=kind,
+        path_prefix=path_prefix,
+        since=since,
+        limit=limit,
+    ).as_dict()
+
+
+@mcp.tool
+def read_document(path: str, page: int = 1) -> dict:
+    """Read the extracted text of one indexed corpus file by its cowork-relative path (as returned by semantic_search), including OCR'd PDFs and images that cannot be read as plain files. Long files are paged in ~40k-character windows; pass page=2, 3, ... to continue. Only files in the semantic index are readable. Recorded identifiers are masked as [pii …last4]."""
+    from cowork_graph.semantic import search
+
+    cfg, _, _ = _semantic()
+    return search.read_document(cfg, path, page=page)
+
+
+@mcp.tool
+def save_memory(text: str, title: str | None = None, tags: list[str] | None = None) -> dict:
+    """Save a durable note for future sessions (a decision, a preference, a project fact) as a markdown file under memory/saved/ in the cowork corpus, indexed immediately so recall_memories finds it. Keep it self-contained and specific; include dates. Notes containing raw identifiers (account or card numbers, SSNs, keys) are refused — keep at most the last four digits. Optional tags use the corpus convention axis/value, e.g. project/kalshicaster. The file is left uncommitted; it syncs to the other machine on Joe's next cowork commit."""
+    from cowork_graph.semantic import memory
+
+    cfg, models, detector = _semantic()
+    return memory.save_memory(cfg, models, detector, text, title=title, tags=tags)
+
+
+@mcp.tool
+def recall_memories(query: str, limit: int = 3) -> dict:
+    """Find previously saved memories (notes written by save_memory) relevant to a question, best first, with 0–1 scores. Use at the start of a task to pick up context earlier sessions recorded. For the wider corpus use semantic_search."""
+    from cowork_graph.semantic import memory
+
+    cfg, models, _ = _semantic()
+    return memory.recall(cfg, models, query, limit=limit)
+
+
+def _warm_semantic() -> None:
+    """Load the retrieval models in the background so the first search is fast."""
+    import threading
+
+    def warm() -> None:
+        try:
+            cfg, models, _ = _semantic()
+            if cfg.semantic.db_path.exists():
+                models.warm()
+        except Exception as exc:  # noqa: BLE001 — best effort; tool calls report real errors
+            import sys
+
+            print(f"semantic warm-up skipped: {exc}", file=sys.stderr)
+
+    threading.Thread(target=warm, name="semantic-warm", daemon=True).start()
+
+
 def main(
     transport: str = "stdio",
     host: str = "127.0.0.1",
@@ -178,6 +279,7 @@ def main(
     server restarts.
     """
     if transport == "http":
+        _warm_semantic()
         mcp.run(transport="http", host=host, port=port, path=path, stateless_http=True)
     else:
         mcp.run()

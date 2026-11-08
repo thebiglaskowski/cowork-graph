@@ -28,6 +28,21 @@ mcp = [
   # produces a server that fails at runtime rather than at install time.
   "fastmcp>=3.4",
 ]
+# Phase 8 semantic layer (plan.md "Phase 8"). Optional like `mcp`: the graph
+# CLI never imports these. Tesseract is a system binary, not a package.
+semantic = [
+  # Same Nomic + MiniLM models as cowork-rag-chat, so retrieval quality carries over.
+  "fastembed>=0.7.4,<1",
+  "sqlite-vec>=0.1.6,<0.2",
+  "pymupdf>=1.24",
+  "python-docx>=1.1",
+  "openpyxl>=3.1",
+]
+# Ingest-time PII detection (LFM2.5-Encoder-350M-PII-Detector). Opt-in: heavy.
+pii = [
+  "transformers>=4.56,<6",
+  "torch>=2.7,<3",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cowork_graph"]

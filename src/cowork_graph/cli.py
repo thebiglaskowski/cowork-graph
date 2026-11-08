@@ -28,18 +28,35 @@ def main() -> int:
     if args[0] == "build":
         return _cmd_build(args[1:])
     if args[0] == "update":
-        return _cmd_update(args[1:])
+        rc = _cmd_update(args[1:])
+        # The git hooks only ever run `update`, so the semantic layer rides
+        # along: a stat-scan sync of whatever changed, tracked or not.
+        if rc == 0:
+            from cowork_graph.semantic.cli import after_graph_update
+
+            after_graph_update(cfg_mod.load())
+        return rc
     if args[0] == "reindex":
         return _cmd_reindex(args[1:])
     if args[0] == "mcp":
         return _cmd_mcp(args[1:])
     if args[0] == "audit":
         return _cmd_audit(args[1:])
+    if args[0] == "semantic":
+        from cowork_graph.semantic.cli import main as semantic_main
+
+        return semantic_main(args[1:])
+    if args[0] == "memory":
+        from cowork_graph.semantic.cli import memory_main
+
+        return memory_main(args[1:])
     print(f"Unknown command: {args[0]}. Run 'cowork-graph help' for usage.", file=sys.stderr)
     return 1
 
 
 def _print_help() -> None:
+    from cowork_graph.semantic.cli import HELP as SEMANTIC_HELP
+
     print(
         "cowork-graph CLI\n"
         "\n"
@@ -60,6 +77,10 @@ def _print_help() -> None:
         "                             --http [--host H] [--port P] [--path P]: one shared HTTP server\n"
         "                             (default http://127.0.0.1:8765/mcp) that many clients connect to.\n"
         "  mcp install                Register with MCP clients (default: --all).\n"
+        "\n"
+        "Semantic layer (needs `uv sync --group semantic`; plan.md Phase 8):\n"
+        + SEMANTIC_HELP
+        + "\n"
         "  help                       Show this message.\n"
         "\n"
         "mcp install flags: --desktop  --code-wsl  --code-ps  --all\n"

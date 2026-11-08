@@ -18,6 +18,9 @@ uv sync --group dev
 # Install with MCP server dependencies
 uv sync --group dev --group mcp
 
+# Everything SKYNET runs (adds the Phase 8 semantic layer + PII detector)
+uv sync --group dev --group mcp --group semantic --group pii
+
 # Run CLI
 uv run cowork-graph
 
@@ -42,6 +45,8 @@ This is a **src-layout** Python package (`src/cowork_graph/`). The CLI entrypoin
 - Core (`python-frontmatter`) — markdown parser, always installed
 - `dev` — pytest + ruff, local dev only
 - `mcp` — `fastmcp`, only needed when running the MCP server; kept optional to keep the base install lean
+- `semantic` — FastEmbed, sqlite-vec, PyMuPDF, python-docx, openpyxl for the Phase 8 semantic layer. Never imported by the graph CLI; `semantic/__init__.py:available()` gates every entry point
+- `pii` — transformers + torch for the LFM2.5 PII detector, ingest-time only
 
 **Runtime artifacts (`.db`, `.db-journal`, `.db-wal`, `.db-shm`) are gitignored** — the SQLite graph is derived state, rebuilt from cowork markdown on demand. Never commit database files.
 
@@ -57,7 +62,8 @@ This is a **src-layout** Python package (`src/cowork_graph/`). The CLI entrypoin
 - `audit.py` — ten drift-detection checks; returns structured findings dict.
 - `audit_html.py` — HTML renderer for audit reports (a view over the markdown report, never a replacement).
 - `suppressions.py` — `(rule, key)` allowlist for intentional findings, read from the cowork-side audits dir.
-- `mcp_server.py` — FastMCP server exposing eight tools over stdio or shared HTTP.
+- `mcp_server.py` — FastMCP server exposing twelve tools (eight graph, four semantic) over stdio or shared HTTP.
+- `semantic/` — Phase 8 semantic layer, its own `semantic.db` with its own `semantic/schema.sql` (the graph's `schema.sql` is untouched). `sync.py` (stat-scan, md5-confirm, re-embed only changes), `extract.py` / `chunking.py`, `models.py` (lazy FastEmbed), `pii.py` (ported masking rules + detector), `search.py` (hybrid retrieval joined to the graph, `read_document` sandbox), `memory.py` (memories as markdown under `memory/saved/`), `evaluate.py` (parity suite ported from cowork-rag-chat).
 
 ### CLI commands
 
@@ -69,7 +75,19 @@ cowork-graph audit [--write]         # Ten drift checks; --write saves markdown 
 cowork-graph mcp serve               # Start MCP server over stdio
 cowork-graph mcp serve --http        # Shared HTTP server (default 127.0.0.1:8765/mcp)
 cowork-graph mcp install             # Register with MCP clients
+cowork-graph semantic build|sync|status|eval   # Phase 8 semantic layer
+cowork-graph memory import <json>    # one-time cowork-rag-chat memory import
 ```
+
+### Semantic-layer invariants (Phase 8)
+
+Carried over from cowork-rag-chat, which these replaced:
+
+- **Fail loud.** A file that fails extraction is recorded as `error` with its message, never silently half-indexed; a missing model or graph raises instead of returning a degraded answer.
+- **One masking path.** Every tool that returns corpus text masks recorded PII through `semantic/pii.py:mask` via `search.pii_values`. Identifiers are masked, names stay servable, and the ≥6-alphanumeric substance gate stays — detector fragments once shredded amounts file-wide.
+- **Never mix embedding spaces.** `store.check_models` refuses a DB built with a different embed model; changing models means deleting `semantic.db` and rebuilding.
+- **Tests never touch the real index.** `tests/semantic_support.py` provides a fake model and a throwaway corpus; `semantic eval` builds an ephemeral corpus in a temp dir.
+- **The parity gate.** `cowork-graph semantic eval` must report parity (exit 0) before any retrieval change ships.
 
 ### Sync hooks
 
@@ -81,7 +99,7 @@ cowork-graph mcp install             # Register with MCP clients
 | `post-merge` | `ORIG_HEAD` | fast-forward pulls (the common two-machine sync) |
 | `post-rewrite` | `ORIG_HEAD` | rebasing pulls; guarded to `$1 = "rebase"` |
 
-The CLI detects merge commits and falls back to a full rebuild automatically. A self-healing last-indexed-SHA watermark means a missed run catches up on the next one rather than leaving a permanent gap.
+Once `semantic.db` exists, `update` also runs a `semantic sync`, so the search index follows every commit and pull too. The CLI detects merge commits and falls back to a full rebuild automatically. A self-healing last-indexed-SHA watermark means a missed run catches up on the next one rather than leaving a permanent gap.
 
 `.git/hooks` is not tracked by git, so this must be run **once per clone**. Only SKYNET runs it; SKYNET-DUEX is a remote-access client into SKYNET, not a mirrored install.
 
@@ -126,5 +144,7 @@ Shipped during the passive trust window, outside the numbered phases:
 - **Hub-derived status** (002236d; cowork 3d0d6a5 plan, 81152a2 migration, 2026-10-08) — implements the 2026-09-24 "work status lives on hubs" decision. Effective status is computed at query time (`EFFECTIVE_STATUS` in `queries.py`): a leaf tagged active or untagged takes its project hub's status. `stale_active_docs` is judged per hub. `resolve_ghost_projects` now re-resolves every project so incremental mode can't leave a stale `hub_doc`. Rules live in plan.md "Hub-derived status".
 - **fastmcp 4.0.11** (efd1ffa, 2026-10-08) — MCP SDK v2. Verified against the bundled `mcp-remote` before restarting the live unit.
 - **jl-graph mcpb extension** (b1ec9f7) — Claude Desktop extension source. Renamed from `cowork-graph` because Desktop reserves the `cowork` prefix and silently drops colliding extensions; the tool prefix clients see is now `mcp__jl-graph__*`.
+
+- **Phase 8** (semantic layer) — built 2026-11-07, absorbing and retiring cowork-rag-chat. Four new MCP tools, separate `semantic.db`, eval parity 56/56 top-1 vs. the RAG's 55/56.
 
 Do not make schema changes without first reading `plan.md` from the cowork side. A `PreToolUse` hook in `.claude/hooks/schema-guard.sh` blocks edits to `schema.sql` to enforce this.

@@ -19,6 +19,11 @@ EXPECTED_TOOLS = {
     "who",
     "decisions",
     "audit",
+    # Phase 8 semantic layer
+    "semantic_search",
+    "read_document",
+    "save_memory",
+    "recall_memories",
 }
 
 
@@ -53,7 +58,7 @@ def _run(coro):
 
 
 class TestToolRegistration:
-    def test_all_eight_tools_registered(self, mcp_app):
+    def test_all_twelve_tools_registered(self, mcp_app):
         from fastmcp import Client
 
         async def check():

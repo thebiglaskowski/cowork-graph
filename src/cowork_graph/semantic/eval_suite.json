@@ -1,0 +1,793 @@
+{
+  "documents": [
+    {
+      "source": "atlas-launch.md",
+      "scope": "engineering",
+      "text": "# Atlas launch decision\n\n2025-03-14: The Atlas data migration launch moved from April 3 to April 17 after failed reconciliation checks. Priya Rao owns the migration; Omar Bell owns rollback. Rollback is triggered if missing invoice rows exceed 0.5 percent. RFC-2041 records the decision. The project is unrelated to Atlas travel insurance."
+    },
+    {
+      "source": "atlas-insurance.md",
+      "scope": "personal",
+      "text": "# Atlas travel insurance\n\nThe Atlas travel insurance policy TRV-2041 covers canceled flights after a twelve-hour delay. The claim deductible is $150. Maya Chen is the broker. This policy does not cover data migration services or business interruption."
+    },
+    {
+      "source": "retention-old.md",
+      "scope": "engineering",
+      "text": "# Archived retention standard\n\nEffective 2023-01-01: production audit logs were retained for 30 days. Backups were retained for 14 days. This standard was superseded by the 2025 retention policy on 2025-02-01. Do not apply these durations to current operations."
+    },
+    {
+      "source": "retention-current.md",
+      "scope": "engineering",
+      "text": "# Current retention policy\n\nEffective 2025-02-01: production audit logs must be retained for 90 days and encrypted backups for 35 days. This supersedes the 2023 standard of 30-day logs and 14-day backups. Legal holds suspend automatic deletion. The security team approves any retention exception."
+    },
+    {
+      "source": "vendor-rates.md",
+      "scope": "finance",
+      "text": "# Harbor vendor rate card\n\nService | Monthly price | Included requests\nBasic | $120 | 10000\nGrowth | $340 | 50000\nEnterprise | $980 | 200000\n\nOverage costs $8 per thousand requests for Basic and Growth. Enterprise overage is negotiated. These prices exclude sales tax and do not apply to employee benefits."
+    },
+    {
+      "source": "employee-benefits.md",
+      "scope": "company",
+      "text": "# Harbor employee benefits\n\nHarbor employees receive a $340 annual wellness allowance and twelve paid volunteer hours per year. The benefits administrator is Leah Finch. Reimbursement requires an itemized receipt within 45 days. Vendor subscription rates have no relationship to this allowance."
+    },
+    {
+      "source": "incident-782.md",
+      "scope": "engineering",
+      "text": "# Incident INC-782\n\n2025-05-06: Checkout failures started at 09:12 UTC and ended at 09:41 UTC. A stale certificate bundle broke the payment connection. Rotating database credentials did not help; replacing the certificate bundle restored service. Owner: Devon Pike. Action: alert 21 days before certificate expiry."
+    },
+    {
+      "source": "incident-728.md",
+      "scope": "engineering",
+      "text": "# Incident INC-728\n\n2024-11-18: Checkout requests timed out because the payment database connection pool was exhausted. Increasing the pool to 120 connections restored service. Owner: Elise Hart. No certificate changes were needed. Follow-up: cap background settlement concurrency at eight workers."
+    },
+    {
+      "source": "purchase-order.md",
+      "scope": "finance",
+      "text": "# Purchase order PO-008142\n\nPO-008142 orders 24 docking stations from Northwind Hardware at $85 each. Delivery is due 2025-06-10 at the east warehouse. Approver: Serena Vale. Invoice INV-008142 is separate and covers consulting; do not confuse the shared digits."
+    },
+    {
+      "source": "consulting-invoice.md",
+      "scope": "finance",
+      "text": "# Invoice INV-008142\n\nINV-008142 covers 18 consulting hours from Northwind Advisory at $160 per hour. Payment terms are net 45 days. The billing contact is Tomas Reed. This invoice does not purchase docking stations or other hardware."
+    },
+    {
+      "source": "backup-runbook.md",
+      "scope": "engineering",
+      "text": "# Backup restoration runbook\n\nRestore into an isolated staging database first. Verify row counts and reconciliation checksums before switching traffic. Recovery point objective is fifteen minutes; recovery time objective is two hours. The on-call SRE approves traffic cutover. Never restore directly over the active production database."
+    },
+    {
+      "source": "travel-policy.md",
+      "scope": "company",
+      "text": "# Employee travel policy\n\nEconomy flights are reimbursed without special approval. Business class requires CFO approval for flights longer than eight hours. Lodging reimbursement is capped at $210 per night before tax. Submit receipts within 30 days after returning. The $150 travel-insurance deductible is not a lodging limit."
+    },
+    {
+      "source": "garden-plan.md",
+      "scope": "personal",
+      "text": "# Home garden plan\n\nThe raised beds contain tomatoes, basil, and carrots. Water early in the morning twice weekly, increasing to three times during heat waves. Soil test GDN-553 shows pH 6.4. Add compost in autumn; avoid nitrogen fertilizer near harvest. The garden is not part of the office wellness program."
+    },
+    {
+      "source": "borealis-risk.md",
+      "scope": "engineering",
+      "text": "# Borealis accessibility review\n\n2025-07-22: Borealis ships a mobile document reader. The release is blocked by keyboard focus loss when closing the search dialog. Account recovery and color contrast passed review. Nia Cole owns the focus fix; acceptance requires returning focus to the search button. This is unrelated to the Atlas data migration."
+    },
+    {
+      "source": "laptop-assets.md",
+      "scope": "company",
+      "text": "# Laptop asset inventory\n\nAsset | Assignee | RAM | Replacement quarter\nLT-041 | Rowan Dale | 16 GB | Q3\nLT-014 | Casey Moss | 32 GB | Q1\nLT-104 | Quinn Lake | 64 GB | Q4\n\nOnly LT-014 is eligible for early replacement. Similar asset numbers represent different machines."
+    },
+    {
+      "source": "support-levels.md",
+      "scope": "company",
+      "text": "# Support response matrix\n\nSeverity | Initial response | Escalation\nS1 total outage | 15 minutes | incident commander\nS2 major impairment | 2 hours | support lead\nS3 question | 1 business day | assigned agent\n\nResponse targets are acknowledgments, not guarantees of resolution. Weekend coverage applies to S1 only."
+    },
+    {
+      "source": "atlas-map.md",
+      "scope": "company",
+      "text": "# Related reference\n\nAtlas map collection contains nineteenth-century sea charts. The curator is Omar Bell; the restoration deadline is April 3. These are museum artifacts, unrelated to the Atlas migration."
+    },
+    {
+      "source": "atlas-draft.md",
+      "scope": "company",
+      "text": "# Related reference\n\nSuperseded Atlas launch draft: Priya Rao initially proposed April 3. This proposal is obsolete; see the Atlas launch decision for the approved date and rollback owner."
+    },
+    {
+      "source": "growth-marketing.md",
+      "scope": "company",
+      "text": "# Related reference\n\nGrowth marketing forecasts 50000 page views and an annual budget of $340000. This is advertising spend, not the Harbor subscription rate card."
+    },
+    {
+      "source": "garden-office.md",
+      "scope": "company",
+      "text": "# Related reference\n\nThe office garden has succulents and receives water once monthly. It is not the home raised-bed garden and has no soil test GDN-553."
+    },
+    {
+      "source": "support-draft.md",
+      "scope": "company",
+      "text": "# Related reference\n\nWithdrawn support draft: S1 acknowledgement target was 30 minutes; S2 was 4 hours. The support response matrix supersedes this draft."
+    },
+    {
+      "source": "incident-872.md",
+      "scope": "company",
+      "text": "# Related reference\n\nIncident INC-872 concerned a broken image thumbnail cache. It did not involve payments. Restarting the thumbnail worker fixed the issue."
+    },
+    {
+      "source": "laptop-supplies.md",
+      "scope": "company",
+      "text": "# Related reference\n\nPurchase requisition LT-140 covers laptop sleeves. Rowan Dale requested 24 sleeves. This is not the laptop asset inventory."
+    },
+    {
+      "source": "northwind-nda.md",
+      "scope": "company",
+      "text": "# Related reference\n\nNorthwind Hardware signed a nondisclosure agreement with Serena Vale. The confidentiality term is three years. It specifies no purchase quantities."
+    },
+    {
+      "source": "northwind-audit.md",
+      "scope": "company",
+      "text": "# Related reference\n\nNorthwind Advisory audit planning mentions Tomas Reed and a net 30 target for future contracts. Existing invoice terms remain unchanged."
+    },
+    {
+      "source": "insurance-home.md",
+      "scope": "company",
+      "text": "# Related reference\n\nHome insurance policy HME-2041 has a $1000 deductible and no coverage for flight delays. Maya Chen is also the broker."
+    },
+    {
+      "source": "backup-tablet.md",
+      "scope": "company",
+      "text": "# Related reference\n\nPersonal tablet backups run once weekly and are kept for six months. These are unrelated to production database backup objectives."
+    },
+    {
+      "source": "borealis-lights.md",
+      "scope": "company",
+      "text": "# Related reference\n\nBorealis is the name of an office lighting installation. Nia Cole designed the search-button motif on the wall mural. The lights have no software release schedule."
+    },
+    {
+      "source": "travel-conference.md",
+      "scope": "company",
+      "text": "# Related reference\n\nConference travel forecast assumes lodging at $250 per night. This planning estimate is not an approved reimbursement policy."
+    },
+    {
+      "source": "retention-sales.md",
+      "scope": "company",
+      "text": "# Related reference\n\nSales lead retention is 180 days. This marketing rule excludes production audit logs and database backups."
+    },
+    {
+      "source": "wellness-draft.md",
+      "scope": "company",
+      "text": "# Related reference\n\nSuperseded wellness proposal suggested $120 annually. The employee benefits policy adopted a different allowance."
+    },
+    {
+      "source": "certificate-inventory.md",
+      "scope": "company",
+      "text": "# Related reference\n\nThe internal wiki certificate expires in December. Its owner is Devon Pike. It is separate from the payment certificate involved in INC-782."
+    }
+  ],
+  "cases": [
+    {
+      "id": "q01",
+      "category": "facts",
+      "query": "Who owns rollback for the Atlas data migration?",
+      "scope": "",
+      "expected": [
+        "atlas-launch.md"
+      ],
+      "evidence": "Omar Bell"
+    },
+    {
+      "id": "q02",
+      "category": "identifier",
+      "query": "What decision is recorded in RFC-2041?",
+      "scope": "",
+      "expected": [
+        "atlas-launch.md"
+      ],
+      "evidence": "April 17"
+    },
+    {
+      "id": "q03",
+      "category": "contradiction",
+      "query": "Was the Atlas migration still launching on April 3?",
+      "scope": "",
+      "expected": [
+        "atlas-launch.md"
+      ],
+      "evidence": "moved from April 3 to April 17"
+    },
+    {
+      "id": "q04",
+      "category": "ambiguity",
+      "query": "What is the deductible on Atlas travel insurance?",
+      "scope": "",
+      "expected": [
+        "atlas-insurance.md"
+      ],
+      "evidence": "$150"
+    },
+    {
+      "id": "q05",
+      "category": "identifier",
+      "query": "Which delays qualify under TRV-2041?",
+      "scope": "",
+      "expected": [
+        "atlas-insurance.md"
+      ],
+      "evidence": "twelve-hour"
+    },
+    {
+      "id": "q06",
+      "category": "negative-premise",
+      "query": "Does Atlas travel insurance cover business interruption?",
+      "scope": "",
+      "expected": [
+        "atlas-insurance.md"
+      ],
+      "evidence": "does not cover"
+    },
+    {
+      "id": "q07",
+      "category": "dates",
+      "query": "How long were production audit logs retained under the 2023 standard?",
+      "scope": "",
+      "expected": [
+        "retention-old.md"
+      ],
+      "evidence": "30 days"
+    },
+    {
+      "id": "q08",
+      "category": "dates",
+      "query": "How long were backups retained under the 2023 standard?",
+      "scope": "",
+      "expected": [
+        "retention-old.md"
+      ],
+      "evidence": "14 days"
+    },
+    {
+      "id": "q09",
+      "category": "contradiction",
+      "query": "Is the archived retention standard still current?",
+      "scope": "",
+      "expected": [
+        "retention-old.md"
+      ],
+      "evidence": "superseded"
+    },
+    {
+      "id": "q10",
+      "category": "contradiction",
+      "query": "What is the current production audit-log retention period?",
+      "scope": "",
+      "expected": [
+        "retention-current.md"
+      ],
+      "evidence": "90 days"
+    },
+    {
+      "id": "q11",
+      "category": "facts",
+      "query": "Who approves retention exceptions?",
+      "scope": "",
+      "expected": [
+        "retention-current.md"
+      ],
+      "evidence": "security team"
+    },
+    {
+      "id": "q12",
+      "category": "negative-premise",
+      "query": "Are held records automatically deleted when retention expires?",
+      "scope": "",
+      "expected": [
+        "retention-current.md"
+      ],
+      "evidence": "Legal holds suspend"
+    },
+    {
+      "id": "q13",
+      "category": "table",
+      "query": "How many requests are included with Harbor Growth?",
+      "scope": "",
+      "expected": [
+        "vendor-rates.md"
+      ],
+      "evidence": "50000"
+    },
+    {
+      "id": "q14",
+      "category": "table",
+      "query": "What is the monthly Enterprise price on the Harbor rate card?",
+      "scope": "",
+      "expected": [
+        "vendor-rates.md"
+      ],
+      "evidence": "$980"
+    },
+    {
+      "id": "q15",
+      "category": "table",
+      "query": "Is the Enterprise overage rate fixed at eight dollars?",
+      "scope": "",
+      "expected": [
+        "vendor-rates.md"
+      ],
+      "evidence": "negotiated"
+    },
+    {
+      "id": "q16",
+      "category": "ambiguity",
+      "query": "Is the Harbor wellness allowance monthly or annual?",
+      "scope": "",
+      "expected": [
+        "employee-benefits.md"
+      ],
+      "evidence": "annual"
+    },
+    {
+      "id": "q17",
+      "category": "facts",
+      "query": "How much paid volunteer time do Harbor employees receive?",
+      "scope": "",
+      "expected": [
+        "employee-benefits.md"
+      ],
+      "evidence": "twelve"
+    },
+    {
+      "id": "q18",
+      "category": "facts",
+      "query": "Who administers Harbor employee benefits?",
+      "scope": "",
+      "expected": [
+        "employee-benefits.md"
+      ],
+      "evidence": "Leah Finch"
+    },
+    {
+      "id": "q19",
+      "category": "identifier",
+      "query": "What caused INC-782?",
+      "scope": "",
+      "expected": [
+        "incident-782.md"
+      ],
+      "evidence": "stale certificate bundle"
+    },
+    {
+      "id": "q20",
+      "category": "negative-premise",
+      "query": "Did rotating database credentials resolve INC-782?",
+      "scope": "",
+      "expected": [
+        "incident-782.md"
+      ],
+      "evidence": "did not help"
+    },
+    {
+      "id": "q21",
+      "category": "facts",
+      "query": "How far before certificate expiry should the incident follow-up alert fire?",
+      "scope": "",
+      "expected": [
+        "incident-782.md"
+      ],
+      "evidence": "21 days"
+    },
+    {
+      "id": "q22",
+      "category": "identifier",
+      "query": "What restored service during INC-728?",
+      "scope": "",
+      "expected": [
+        "incident-728.md"
+      ],
+      "evidence": "120 connections"
+    },
+    {
+      "id": "q23",
+      "category": "dates",
+      "query": "Who owned the checkout outage in November 2024?",
+      "scope": "",
+      "expected": [
+        "incident-728.md"
+      ],
+      "evidence": "Elise Hart"
+    },
+    {
+      "id": "q24",
+      "category": "contradiction",
+      "query": "Was INC-728 caused by an expired certificate?",
+      "scope": "",
+      "expected": [
+        "incident-728.md"
+      ],
+      "evidence": "pool was exhausted"
+    },
+    {
+      "id": "q25",
+      "category": "identifier",
+      "query": "How many docking stations are on PO-008142?",
+      "scope": "",
+      "expected": [
+        "purchase-order.md"
+      ],
+      "evidence": "24"
+    },
+    {
+      "id": "q26",
+      "category": "identifier",
+      "query": "Who approved PO-008142?",
+      "scope": "",
+      "expected": [
+        "purchase-order.md"
+      ],
+      "evidence": "Serena Vale"
+    },
+    {
+      "id": "q27",
+      "category": "facts",
+      "query": "Where should the Northwind docking stations be delivered?",
+      "scope": "",
+      "expected": [
+        "purchase-order.md"
+      ],
+      "evidence": "east warehouse"
+    },
+    {
+      "id": "q28",
+      "category": "identifier",
+      "query": "What are the payment terms on INV-008142?",
+      "scope": "",
+      "expected": [
+        "consulting-invoice.md"
+      ],
+      "evidence": "45 days"
+    },
+    {
+      "id": "q29",
+      "category": "ambiguity",
+      "query": "Which Northwind business supplied consulting rather than hardware?",
+      "scope": "",
+      "expected": [
+        "consulting-invoice.md"
+      ],
+      "evidence": "Northwind Advisory"
+    },
+    {
+      "id": "q30",
+      "category": "facts",
+      "query": "What hourly consulting rate appears on INV-008142?",
+      "scope": "",
+      "expected": [
+        "consulting-invoice.md"
+      ],
+      "evidence": "$160"
+    },
+    {
+      "id": "q31",
+      "category": "facts",
+      "query": "Who approves traffic cutover after a database restore?",
+      "scope": "",
+      "expected": [
+        "backup-runbook.md"
+      ],
+      "evidence": "on-call SRE"
+    },
+    {
+      "id": "q32",
+      "category": "ambiguity",
+      "query": "What is the backup recovery point objective rather than recovery time?",
+      "scope": "",
+      "expected": [
+        "backup-runbook.md"
+      ],
+      "evidence": "fifteen minutes"
+    },
+    {
+      "id": "q33",
+      "category": "negative-premise",
+      "query": "Should an operator restore directly over the active database?",
+      "scope": "",
+      "expected": [
+        "backup-runbook.md"
+      ],
+      "evidence": "Never restore directly"
+    },
+    {
+      "id": "q34",
+      "category": "facts",
+      "query": "What approval is required for business-class flights over eight hours?",
+      "scope": "",
+      "expected": [
+        "travel-policy.md"
+      ],
+      "evidence": "CFO"
+    },
+    {
+      "id": "q35",
+      "category": "ambiguity",
+      "query": "Is the lodging cap the same as the insurance deductible?",
+      "scope": "",
+      "expected": [
+        "travel-policy.md"
+      ],
+      "evidence": "$210"
+    },
+    {
+      "id": "q36",
+      "category": "facts",
+      "query": "When must employee travel receipts be submitted?",
+      "scope": "",
+      "expected": [
+        "travel-policy.md"
+      ],
+      "evidence": "30 days"
+    },
+    {
+      "id": "q37",
+      "category": "identifier",
+      "query": "What soil pH was measured by GDN-553?",
+      "scope": "",
+      "expected": [
+        "garden-plan.md"
+      ],
+      "evidence": "6.4"
+    },
+    {
+      "id": "q38",
+      "category": "facts",
+      "query": "How does watering change during a heat wave?",
+      "scope": "",
+      "expected": [
+        "garden-plan.md"
+      ],
+      "evidence": "three times"
+    },
+    {
+      "id": "q39",
+      "category": "negative-premise",
+      "query": "Should nitrogen fertilizer be added near garden harvest?",
+      "scope": "",
+      "expected": [
+        "garden-plan.md"
+      ],
+      "evidence": "avoid"
+    },
+    {
+      "id": "q40",
+      "category": "facts",
+      "query": "What blocks the Borealis document-reader release?",
+      "scope": "",
+      "expected": [
+        "borealis-risk.md"
+      ],
+      "evidence": "keyboard focus loss"
+    },
+    {
+      "id": "q41",
+      "category": "negative-premise",
+      "query": "Did account recovery fail the Borealis review?",
+      "scope": "",
+      "expected": [
+        "borealis-risk.md"
+      ],
+      "evidence": "passed review"
+    },
+    {
+      "id": "q42",
+      "category": "facts",
+      "query": "Where should keyboard focus return when the Borealis search dialog closes?",
+      "scope": "",
+      "expected": [
+        "borealis-risk.md"
+      ],
+      "evidence": "search button"
+    },
+    {
+      "id": "q43",
+      "category": "table",
+      "query": "How much RAM is in LT-014?",
+      "scope": "",
+      "expected": [
+        "laptop-assets.md"
+      ],
+      "evidence": "32 GB"
+    },
+    {
+      "id": "q44",
+      "category": "identifier",
+      "query": "Who has laptop LT-041?",
+      "scope": "",
+      "expected": [
+        "laptop-assets.md"
+      ],
+      "evidence": "Rowan Dale"
+    },
+    {
+      "id": "q45",
+      "category": "table",
+      "query": "Which laptop can be replaced early?",
+      "scope": "",
+      "expected": [
+        "laptop-assets.md"
+      ],
+      "evidence": "LT-014"
+    },
+    {
+      "id": "q46",
+      "category": "table",
+      "query": "What is the S2 initial response target?",
+      "scope": "",
+      "expected": [
+        "support-levels.md"
+      ],
+      "evidence": "2 hours"
+    },
+    {
+      "id": "q47",
+      "category": "negative-premise",
+      "query": "Does a fifteen-minute S1 response guarantee resolution in fifteen minutes?",
+      "scope": "",
+      "expected": [
+        "support-levels.md"
+      ],
+      "evidence": "not guarantees"
+    },
+    {
+      "id": "q48",
+      "category": "table",
+      "query": "Which support severity receives weekend coverage?",
+      "scope": "",
+      "expected": [
+        "support-levels.md"
+      ],
+      "evidence": "S1 only"
+    },
+    {
+      "id": "q49",
+      "query": "Compare current and archived backup retention periods.",
+      "category": "multi-source",
+      "scope": "",
+      "expected": [
+        "retention-old.md",
+        "retention-current.md"
+      ],
+      "evidence": ""
+    },
+    {
+      "id": "q50",
+      "query": "How do the causes of INC-728 and INC-782 differ?",
+      "category": "multi-source",
+      "scope": "",
+      "expected": [
+        "incident-728.md",
+        "incident-782.md"
+      ],
+      "evidence": ""
+    },
+    {
+      "id": "q51",
+      "query": "Which Northwind orders involve hardware versus consulting?",
+      "category": "scope",
+      "scope": "finance",
+      "expected": [
+        "purchase-order.md",
+        "consulting-invoice.md"
+      ],
+      "evidence": ""
+    },
+    {
+      "id": "q52",
+      "query": "Atlas launch rollback owner",
+      "category": "scope",
+      "scope": "engineering",
+      "expected": [
+        "atlas-launch.md"
+      ],
+      "evidence": ""
+    },
+    {
+      "id": "q53",
+      "query": "Atlas insurance deductible",
+      "category": "scope",
+      "scope": "personal",
+      "expected": [
+        "atlas-insurance.md"
+      ],
+      "evidence": ""
+    },
+    {
+      "id": "q54",
+      "query": "Harbor Growth included requests",
+      "category": "scope",
+      "scope": "-personal",
+      "expected": [
+        "vendor-rates.md"
+      ],
+      "evidence": ""
+    },
+    {
+      "id": "q55",
+      "query": "What happened to checkout in May 2025?",
+      "category": "dates",
+      "scope": "",
+      "expected": [
+        "incident-782.md"
+      ],
+      "evidence": ""
+    },
+    {
+      "id": "q56",
+      "query": "What did the Borealis review find in July 2025?",
+      "category": "dates",
+      "scope": "engineering",
+      "expected": [
+        "borealis-risk.md"
+      ],
+      "evidence": ""
+    },
+    {
+      "id": "q57",
+      "query": "What is the cafeteria soup menu for next Friday?",
+      "category": "no-answer",
+      "scope": "",
+      "expected": [],
+      "evidence": ""
+    },
+    {
+      "id": "q58",
+      "query": "What is the wireless password at the east warehouse?",
+      "category": "no-answer",
+      "scope": "",
+      "expected": [],
+      "evidence": ""
+    },
+    {
+      "id": "q59",
+      "query": "What was Northwind annual revenue?",
+      "category": "no-answer",
+      "scope": "",
+      "expected": [],
+      "evidence": ""
+    },
+    {
+      "id": "q60",
+      "query": "Who won the regional tennis tournament?",
+      "category": "no-answer",
+      "scope": "",
+      "expected": [],
+      "evidence": ""
+    },
+    {
+      "id": "q61",
+      "query": "What is the Atlas insurance deductible?",
+      "category": "no-answer",
+      "scope": "engineering",
+      "expected": [],
+      "evidence": ""
+    },
+    {
+      "id": "q62",
+      "query": "Which planets have been visited by the Harbor company?",
+      "category": "no-answer",
+      "scope": "",
+      "expected": [],
+      "evidence": ""
+    },
+    {
+      "id": "q63",
+      "query": "What is the current price of the Zenith Ultra subscription?",
+      "category": "no-answer",
+      "scope": "",
+      "expected": [],
+      "evidence": ""
+    },
+    {
+      "id": "q64",
+      "query": "Who owns patent US-99887766?",
+      "category": "no-answer",
+      "scope": "",
+      "expected": [],
+      "evidence": ""
+    }
+  ]
+}

@@ -2,8 +2,8 @@
   "manifest_version": "0.3",
   "name": "jl-graph",
   "display_name": "jl-graph",
-  "version": "3.3.0",
-  "description": "Structured queries over the cowork markdown corpus (search_docs, list_active, project_state, decisions, who, audit).",
+  "version": "3.4.0",
+  "description": "Structured queries and semantic search over the cowork corpus (search_docs, semantic_search, list_active, project_state, decisions, who, audit, memories).",
   "long_description": "Bridges Claude Desktop, Cowork sessions, and live artifacts to the locally-hosted cowork-graph MCP server via a thin stdio-to-HTTP proxy (mcp-remote) pointing at http://127.0.0.1:8765/mcp (the cowork-graph-mcp.service systemd user unit in WSL). RENAMED from 'cowork-graph' (2026-07-31): Claude Desktop reserves the 'cowork' name prefix for its internal servers and LocalMcpServerManager silently drops colliding extensions before they reach the remote-devices bridge — which is why this extension never surfaced to cloud Cowork sessions despite working in the desktop app. The tool prefix live artifacts see is now mcp__jl-graph__*; artifacts that hardcoded mcp__cowork-graph__* must be updated. NOTE: mcp_config uses an ABSOLUTE path instead of ${__dirname} because the artifact-host connect path does not substitute manifest variables ('Node.js server requires a resolvable entry point' error, 2026-07-13). The path assumes install under %APPDATA%/Claude/Claude Extensions/local.mcpb.joe-laskowski.jl-graph/.",
   "author": {
     "name": "Joe Laskowski",
@@ -30,6 +30,10 @@
     {"name": "project_state", "description": "Full subgraph for one project"},
     {"name": "who", "description": "Person node and every doc mentioning them"},
     {"name": "decisions", "description": "Recent decisions, topic-filterable"},
-    {"name": "audit", "description": "Run the drift-detection linter"}
+    {"name": "audit", "description": "Run the drift-detection linter"},
+    {"name": "semantic_search", "description": "Hybrid meaning + keyword search over docs, PDFs and OCR'd scans"},
+    {"name": "read_document", "description": "Paged extracted text of one indexed file, PII-masked"},
+    {"name": "save_memory", "description": "Save a durable note as markdown under memory/saved/"},
+    {"name": "recall_memories", "description": "Find saved memories relevant to a question"}
   ]
 }
