@@ -12,7 +12,7 @@ CHUNK_OVERLAP = 80
 # Files producing more chunks than this are skipped, not truncated: a
 # half-indexed file is worse than an honest "skipped" (cowork-rag-chat
 # MAX_FILE_CHUNKS).
-MAX_FILE_CHUNKS = 2000
+MAX_FILE_CHUNKS = 3000
 
 _SENTENCE = re.compile(r"(?<=[.!?])\s+")
 

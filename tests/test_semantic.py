@@ -190,6 +190,19 @@ class TestSync:
         _sync(cfg, retry_errors=True)
         assert calls == ["bad.pdf"]
 
+    def test_skipped_file_indexed_by_retry_after_cap_raised(self, tmp_path, monkeypatch):
+        body = "\n\n".join(f"Paragraph {i}. " + "word " * 150 for i in range(6))
+        cfg = make_cfg(tmp_path, {"long.md": body})
+        monkeypatch.setattr(chunking, "MAX_FILE_CHUNKS", 1)
+        _sync(cfg)
+        assert _rows(cfg)["long.md"]["status"] == "skipped"
+        monkeypatch.setattr(chunking, "MAX_FILE_CHUNKS", 3000)
+        _sync(cfg)
+        assert _rows(cfg)["long.md"]["status"] == "skipped"  # unchanged file, no retry asked
+        _sync(cfg, retry_errors=True)
+        row = _rows(cfg)["long.md"]
+        assert row["status"] == "ok" and row["chunk_count"] > 1
+
     def test_empty_file_kept_as_empty(self, tmp_path):
         cfg = make_cfg(tmp_path, {"blank.md": "---\ntags: []\n---\n"})
         s = _sync(cfg)

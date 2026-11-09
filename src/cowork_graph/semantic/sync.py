@@ -164,10 +164,13 @@ def sync(
                 same_stat = (
                     row is not None and row["size"] == f.size and row["mtime_ns"] == f.mtime_ns
                 )
-                retry = retry_errors and row is not None and row["status"] == "error"
+                # "skipped" retries too: it depends on MAX_FILE_CHUNKS, not the
+                # file, so an unchanged file can become indexable when the cap moves.
+                retryable = row is not None and row["status"] in ("error", "skipped")
+                retry = retry_errors and retryable
                 if same_stat and not needs_pii and not retry:
                     continue
-                prior_ok = row is not None and row["status"] != "error" and not needs_pii
+                prior_ok = row is not None and not retryable and not needs_pii
                 todo.append((f, row["md5"] if row is not None else None, prior_ok))
 
             if todo:
